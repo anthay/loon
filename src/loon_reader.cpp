@@ -35,20 +35,15 @@
 namespace loon {
 
 
-loon_exception::loon_exception(const char * what)
-: std::exception(what)
-{
-}
-
 // any occurance of this exception indicates a bug in loon::reader
 loon_internal_error::loon_internal_error(const char * what)
-: std::exception(what)
+: exception(what)
 {
 }
 
 // there was a syntax error in the loon source text
 loon_syntax_error::loon_syntax_error(const char * what)
-: std::exception(what)
+: exception(what)
 {
 }
 
@@ -77,11 +72,6 @@ const std::vector<uint8_t> symname_true(to_vector("true"));
 
 
 
-std::string escaped(const std::string & s)
-{
-    return s; //TBD
-}
-
 // return true iff given 'n' is first of UTF-16 surrogate pair (0xD800 <= n <= 0xDBFF)
 inline bool utf16_is_surrogate_lead(uint32_t n)
 {
@@ -105,9 +95,22 @@ inline bool is_digit(uint8_t ch)
     return '0' <= ch && ch <= '9';//TBD
 }
 
+inline bool is_hexdigit(uint8_t ch)
+{
+    return ('0' <= ch && ch <= '9')
+        || ('a' <= ch && ch <= 'f')
+        || ('A' <= ch && ch <= 'F');
+}
+
+inline bool is_ctrl(uint8_t ch)
+{
+    return ch < 0x20;
+}
+
+
 inline bool is_whitespace(uint8_t ch)
 {
-    return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';//TBD
+    return ch == ' ' || is_ctrl(ch);
 }
 
 inline bool is_newline(uint8_t ch)
@@ -115,11 +118,6 @@ inline bool is_newline(uint8_t ch)
     return ch == '\n' || ch == '\r';//TBD
 }
 
-inline void skipspace(const uint8_t *& p, const uint8_t * const end)
-{
-    while (p != end && is_whitespace(*p))
-        ++p;
-}
 
 // return true iff given 'c' is ASCII hex digit; return binary value of digit in 'n'
 inline bool hex2bin(uint8_t c, uint32_t & n)
@@ -295,161 +293,313 @@ const char * const expected_dict_or_arry = "expected 'dict' or 'arry'";
 const char * const unexpected_symbol = "unexpected symbol";
 
 
-void reader_base::process_chunk(const char * utf8, size_t utf8_len, bool is_last_chunk)
+
+void reader_base::process(uint8_t ch)
 {
-    const uint8_t * p = reinterpret_cast<const uint8_t *>(utf8);
-    const uint8_t * const end = p + utf8_len;
-    while (p != end) {
-
+    bool loop;
+    do {
+        loop = false; // (TBD could do away with loop and just call process recursively with the unprocessed char)
         switch (state_) {
-
-        case bom_test:
-            {
-                if (*p == 0xEF) {
-                    ++p;
-                    state_ = in_bom_1;
-                }
-                else {
-                    // there is no UTF-8 BOM at the stream start
-                    state_ = start;
-                }
-            }
-            break;
-
-        case in_bom_1:
-            {
-                if (*p == 0xBB) {
-                    ++p;
-                    state_ = in_bom_2;
-                }
-                else
-                    throw loon_syntax_error("invalid UTF-8 BOM");
-            }
-            break;
-
-        case in_bom_2:
-            {
-                if (*p == 0xBF) {
-                    ++p;
-                    // we have silently consumed the complete UTF-8 BOM
-                    state_ = start;
-                }
-                else
-                    throw loon_syntax_error("invalid UTF-8 BOM");
-            }
-            break;
-    
         case start:
-            {
-                skipspace(p, end);
-                if (p == end) {
-                    // no further source text in given buffer
-                    // remain in start state
-                }
-                else if (*p == ';') {
-                    ++p;
-                    state_ = in_coment;
-                }
-                else if (*p == '(') {
-                    ++nest_level_;
-                    begin_list();
-                    ++p;
-                    // remain in start state
-                }
-                else if (*p == ')') {
-                    if (nest_level_ == 0)
-                        throw loon_syntax_error("reader::process_chunk() - unbalanced ')'");
-                    --nest_level_;
-                    end_list();
-                    ++p;
-                    // remain in start state
-                }
-                else if (*p == '"') { // the start of a new string atom
-                    value_.clear(); // accumulate the string in value_
-                    ++p;
-                    state_ = in_string;
-                }
-                else if (is_digit(*p)) { //TBD + -
-                    value_.clear(); // accumulate the number in value_
-                    value_.push_back(*p++);
-                    state_ = in_number;
-                }
-                else { // in symbol
-                    value_.clear(); // accumulate the symbol in value_
-                    value_.push_back(*p++);
-                    state_ = in_symbol;
-                }
+            if (is_whitespace(ch)) {
+                // ignore white space
+                // remain in start state
+            }
+            else if (ch == ';') { // the start of a comment
+                state_ = in_coment;
+            }
+            else if (ch == '(') { // the start of a list
+                ++nest_level_;
+                begin_list();
+                // remain in start state
+            }
+            else if (ch == ')') { // the end of a list
+                if (nest_level_ == 0)
+                    throw loon_syntax_error("reader::process_chunk() - unbalanced ')'");
+                --nest_level_;
+                end_list();
+                // remain in start state
+            }
+            else if (ch == '"') { // the start of a new string atom
+                value_.clear();
+                state_ = in_string;
+            }
+            else if (is_digit(ch)) { // {0-9} => start of integer or hex number
+                value_.clear();
+                value_.push_back(ch);
+                state_ = num_digit_start;
+            }
+            else if (ch == '-' || ch == '+') { // {+-} => start of integer (possibly)
+                value_.clear();
+                value_.push_back(ch);
+                state_ = num_sign;
+            }
+            else { // must be in symbol
+                value_.clear();
+                value_.push_back(ch);
+                state_ = in_symbol;
             }
             break;
 
         case in_string:
-            {
-                if (*p == '"') { // the end of the string atom
-                    ++p;
-                    if (expand_loon_string_escapes(value_) != expand_success)
-                        throw loon_syntax_error("reader::process_chunk() - bad escape sequence in string");
-                    atom_string(value_);
-                    state_ = start;
-                }
-                else if (*p == '\\') {
-                    value_.push_back(*p++);
-                    state_ = in_string_escape;
-                }
-                else if (*p < 0x20) {
-                    throw loon_syntax_error("reader::process_chunk() - unescaped control character in string");
-                }
-                else {
-                    value_.push_back(*p++);
-                    // remain in in_string state
-                }
+            if (ch < 0x20) {
+                throw loon_syntax_error("reader::process_chunk() - unescaped control character in string");
             }
-            break;
+            else if (ch == '"') { // the end of the string atom
+                if (expand_loon_string_escapes(value_) != expand_success)
+                    throw loon_syntax_error("reader::process_chunk() - bad escape sequence in string");
+                atom_string(value_);
+                state_ = start;
+            }
+            else if (ch == '\\') {
+                value_.push_back(ch);
+                state_ = in_string_escape;
+            }
+            else {
+                value_.push_back(ch);
+                // remain in in_string state
+            }
+        break;
 
         case in_string_escape:
-            {
-                // accumulate the char following the '\', whatever it is
-                value_.push_back(*p++);
-                state_ = in_string;
-            }
-            break;
-
-        case in_number:
-            {
-                if (is_digit(*p)) {//TBD
-                    value_.push_back(*p++);
-                    // remain in in_number state
-                }
-                else {
-                    atom_number(value_);//TBD value_ post-processing for numbers?
-                    state_ = start;
-                }
-            }
+            // accumulate the char following the '\', whatever it is
+            value_.push_back(ch);
+            state_ = in_string;
             break;
 
         case in_symbol:
-            {
-                if (*p == '(' || *p == ')' || *p == '"' || *p == ';' || is_whitespace(*p)) {
-                    atom_symbol(value_);
-                    state_ = start;
-                }
-                else {
-                    value_.push_back(*p++);
-                    // remain in in_symbol state
-                }
+            if (ch == '(' || ch == ')' || ch == '"' || ch == ';' || is_whitespace(ch)) {
+                atom_symbol(value_);
+                state_ = start;
+                loop = true; // ch is unprocessed - loop round again
+            }
+            else {
+                value_.push_back(ch);
+                // remain in in_symbol state
             }
             break;
 
         case in_coment:
-            {
-                if (is_newline(*p))
-                    state_ = start;
-                // else remain in in_coment state
-                ++p;
+            if (is_newline(ch))
+                state_ = start;
+            // else remain in in_coment state
+            break;
+
+        case num_sign:
+            if (is_digit(ch)) { // {+-} {0-9} => integer part
+                value_.push_back(ch);
+                state_ = num_digits;
+            }
+            else { // {+-} {ch: any character that isn't 0-9} => this was never a number
+                // value_[0] is either '+' or '-' and is the start of a symbol
+                loop = true; // ch is unprocessed
+                state_ = in_symbol;
             }
             break;
 
+        case num_digit_start:
+            if (ch == 'x' || ch == 'X') {
+                if (value_[0] == '0') { // {0} {xX} => start of hex number
+                    value_.push_back(ch);
+                    state_ = num_hex;
+                    break;
+                }
+                else // {1-9} {xX} => syntax error
+                    throw loon_exception(loon_exception::tbd, "loon: syntax error: incomplete hex number 0x");;
+            }
+            state_ = num_digits;
+            // ch is unprocessed; fall through to num_digits
+
+        case num_digits:
+            if (ch == 'e' || ch == 'E') { // {0-9} {eE} => start of float exponent
+                value_.push_back(ch);
+                state_ = num_exp_start;
+            }
+            else if (ch == '.') { // {0-9} {.} => start of float fractional part
+                value_.push_back(ch);
+                state_ = num_frac_digits;
+            }
+            else if (is_digit(ch)) { // {0-9} {0-9} => more of integer part
+                value_.push_back(ch);
+                // remain in num_digits state
+            }
+            else { // {0-9} {ch: any char except e E . or 0-9} => end of number?
+                atom_number(value_); // TBD do something with int value_
+                loop = true; // ch is unprocessed
+                state_ = start;
+            }
+            break;
+
+        case num_frac_digits:
+            if (ch == 'e' || ch == 'E') { // {0-9} {.} {eE} => start of float exponent
+                value_.push_back(ch);
+                state_ = num_exp_start;
+            }
+            else if (is_digit(ch)) { // {0-9} {.} {0-9} => more of fractional part
+                value_.push_back(ch);
+                // remain in num_frac_digits state
+            }
+            else { // {0-9} {.} {X: any char except e E or 0-9} => end of number?
+                atom_number(value_); // TBD do something with float value_
+                loop = true; // ch is unprocessed
+                state_ = start;
+            }
+            break;
+
+        case num_exp_start:
+            if (ch == '-' || ch == '+') { // {0-9} {eE} {+-} => more exponent
+                value_.push_back(ch);
+                state_ = num_exp_start_digits;
+            }
+            else if (is_digit(ch)) { // {0-9} {eE} {0-9} => more exponent
+                value_.push_back(ch);
+                state_ = num_exp;
+            }
+            else // {0-9} {eE} {ch: any char except + - or 0-9} => syntax error
+                throw loon_exception(loon_exception::tbd, "loon: syntax error: incomplete float");;
+            break;
+
+        case num_exp_start_digits:
+            if (is_digit(ch)) { // {0-9} {eE} {+-} {0-9} => more exponent
+                value_.push_back(ch);
+                state_ = num_exp;
+            }
+            else // {0-9} {eE} {+-} {ch: any char except 0-9} => syntax error
+                throw loon_exception(loon_exception::tbd, "loon: syntax error: incomplete float");;
+            break;
+
+        case num_exp:
+            if (is_digit(ch)) { // {0-9} {eE} {+ - 0-9} {0-9} => more exponent
+                value_.push_back(ch);
+                // remain in num_exp
+            }
+            else { // {0-9} {eE} {+ - 0-9} {ch: any char except e E . or 0-9} => end of number?
+                atom_number(value_); // TBD do something with float value_
+                loop = true; // ch is unprocessed
+                state_ = start;
+            }
+            break;
+
+        case num_hex:
+            if (is_hexdigit(ch)) { // {0} {xX} {0-0a-fA-F} => more hex number
+                value_.push_back(ch);
+                // remain in num_hex state
+            }
+            else if (value_.size() > 2) {
+                // {0} {xX} {0-0a-fA-F} {ch: any char except 0-0a-fA-F} => end of hex number
+                atom_number(value_); // TBD do something with hex value_
+                loop = true; // ch is unprocessed
+                state_ = start;
+            }
+            else // {0} {xX} {ch: any char except 0-0a-fA-F} => is an incomplete hex number
+                throw loon_exception(loon_exception::tbd, "loon: syntax error: incomplete hex number");;
+            break;
+
+
         default:
-            throw loon_internal_error("reader::process_chunk() - internal error - unknown state");
+            throw loon_internal_error("loon: internal error: unknown state");
+        }
+    }
+    while (loop);
+}
+
+
+void reader_base::process_chunk(const char * utf8, size_t utf8_len, bool is_last_chunk)
+{
+    const uint8_t * p = reinterpret_cast<const uint8_t *>(utf8);
+    const uint8_t * const end = p + utf8_len;
+
+    // loop once for every byte in [utf8, utf8 + utf8_len)
+    for (; p != end; ++p) {
+        if (*p == '\r') {
+            // {CR} => newline
+            ++current_line_;
+            cr_ = true;
+        }
+        else {
+            // {LF} => {newline} (don't count {LF} if preceeded by {CR}
+            // because we already counted it when we saw the {CR})
+            if (*p == '\n' && !cr_)
+                ++current_line_;
+            cr_ = false;
+        }
+
+        switch (pp_state_) { // "pre-processor" state
+        case pp_in_bom_1:
+            if (*p == 0xBB)
+                pp_state_ = pp_in_bom_2;
+            else
+                throw loon_syntax_error("invalid UTF-8 BOM");
+            break;
+
+        case pp_in_bom_2:
+            if (*p == 0xBF) {
+                // we have silently consumed the complete UTF-8 BOM
+                pp_state_ = pp_start;
+            }
+            else
+                throw loon_syntax_error("invalid UTF-8 BOM");
+            break;
+    
+        case pp_bom_test:
+            if (*p == 0xEF) {
+                pp_state_ = pp_in_bom_1;
+                break;
+            }
+            else {
+                // there is no UTF-8 BOM at the stream start
+                pp_state_ = pp_start;
+            }
+            // fall through to pp_start
+
+        case pp_start:
+            if (*p == '\\') {
+                // {\} => {unknown until we see next character}
+                pp_state_ = pp_escape;
+            }
+            else {
+                // {X: any char except \} => {X}
+                process(*p);
+            }
+            break;
+
+        case pp_escape:
+            if (*p == '\r') {
+                // {\} {CR} => {line splice}
+                pp_state_ = pp_ignore_lf; // in case newlines are {CR} {LF}
+            }
+            else if (*p == '\n') {
+                // {\} {LF} => {line splice}
+                pp_state_ = pp_start;
+            }
+            else if (*p == '\\') {
+                // {\} {\} => {\} {unknown until we see next character}
+                process('\\'); // process previous \ escape
+                // remain in pp_escape state
+            }
+            else {
+                // {\} {X: any char except CR, LF and \} => {\} {X}
+                process('\\');
+                process(*p);
+                pp_state_ = pp_start;
+            }
+            break;
+
+        case pp_ignore_lf:
+            if (*p == '\n') {
+                // {\} {CR} {LF} => {line splice}
+                pp_state_ = pp_start;
+            }
+            else if (*p == '\\') {
+                // {\} {CR} {\} => {line splice} {unknown until we see next character}
+                pp_state_ = pp_escape;
+            }
+            else {
+                // {\} {CR} {X: any char except LF and \} => {\} {X}
+                process(*p);
+                pp_state_ = pp_start;
+            }
+            break;
         }
     }
     // we've processed all the source text we were given
@@ -460,12 +610,21 @@ void reader_base::process_chunk(const char * utf8, size_t utf8_len, bool is_last
         switch (state_) {
         case in_string:
         case in_string_escape:
-            throw loon_exception("reader::process_chunk() - incomplete string");
-        case in_number:
+            throw loon_exception(loon_exception::tbd, "loon: syntax error: incomplete string");
+
+        case num_digit_start:
+        case num_digits:
+        case num_frac_digits:
+        case num_exp_start:
+        case num_exp_start_digits:
+        case num_exp:
+        case num_hex:
             // we won't be getting any more of this number
             atom_number(value_);//TBD value_ post-processing for numbers?
             state_ = start;
             break;
+
+        case num_sign:
         case in_symbol:
             // we won't be getting any more of this symbol
             atom_symbol(value_);
@@ -473,14 +632,19 @@ void reader_base::process_chunk(const char * utf8, size_t utf8_len, bool is_last
             break;
         }
         if (nest_level_)
-            throw loon_exception("reader::process_chunk() - unclosed list");
+            throw loon_exception(loon_exception::tbd, "loon: syntax error: unclosed list");
     }
 }
 
 
+
+
 void reader_base::reset()
 {
-    state_ = bom_test;
+    pp_state_ = pp_bom_test;
+    state_ = start;
+    cr_ = false;
+    current_line_ = 1;
     nest_level_ = 0;
 }
 
@@ -513,14 +677,14 @@ void reader::loon_number(const char *, size_t) {}
 void reader::begin_list()
 {
     if (at_list_start)
-        throw loon_exception("reader::process_chunk() - expected 'arry' or 'dict', got '('");
+        throw loon_exception(loon_exception::tbd, "loon: syntax error: expected 'arry' or 'dict', got '('");
     at_list_start = true;
 }
 
 void reader::end_list()
 {
     if (at_list_start)
-        throw loon_exception("reader::process_chunk() - expected 'arry' or 'dict', got ')'");
+        throw loon_exception(loon_exception::tbd, "loon: syntax error: expected 'arry' or 'dict', got ')'");
     loon_end();
 }
 
@@ -532,7 +696,7 @@ void reader::atom_symbol(const std::vector<uint8_t> & value)
         else if (value == symname_dict)
             loon_dict();
         else
-            throw loon_exception("reader::process_chunk() - expected 'arry' or 'dict', got other symbol");
+            throw loon_exception(loon_exception::tbd, "loon: syntax error: expected 'arry' or 'dict', got other symbol");
         at_list_start = false;
     }
     else {
@@ -550,14 +714,14 @@ void reader::atom_symbol(const std::vector<uint8_t> & value)
 void reader::atom_string(const std::vector<uint8_t> & value)
 {
     if (at_list_start)
-        throw loon_exception("reader::process_chunk() - expected 'arry' or 'dict', got string");
+        throw loon_exception(loon_exception::tbd, "loon: syntax error: expected 'arry' or 'dict', got string");
     loon_string(c_str(value), value.size());
 }
 
 void reader::atom_number(const std::vector<uint8_t> & value)
 {
     if (at_list_start)
-        throw loon_exception("reader::process_chunk() - expected 'arry' or 'dict', got number");
+        throw loon_exception(loon_exception::tbd, "loon: syntax error: expected 'arry' or 'dict', got number");
     loon_number(c_str(value), value.size());
 }
 

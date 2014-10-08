@@ -36,11 +36,6 @@
 namespace  loon {
 
 
-class loon_exception : public std::exception {
-public:
-    loon_exception(const char * what);
-};
-
 class loon_internal_error : public std::exception {
 public:
     loon_internal_error(const char * what);
@@ -50,6 +45,27 @@ class loon_syntax_error : public std::exception {
 public:
     loon_syntax_error(const char * what);
 };
+
+
+class loon_exception : public std::runtime_error {
+public:
+    enum error_id {
+        tbd = 1,
+        internal_error_ = 0xBADC0DE1
+    };
+
+    loon_exception(error_id id, const char * msg)
+    : std::runtime_error(msg), id_(id)
+    {}
+
+    virtual error_id id() const { return id_; }
+
+protected:
+    error_id id_;
+};
+
+// xxxx: internal error: specific
+// xxxx: syntax error: specific
 
 
 // ignore this class: it is a loon reader implementation detail
@@ -69,21 +85,18 @@ public:
     virtual void atom_string(const std::vector<uint8_t> &) = 0;
     virtual void atom_number(const std::vector<uint8_t> &) = 0;
 
-private:
-    enum {
-        bom_test,
-        in_bom_1,
-        in_bom_2,
-        start,
-        in_symbol,
-        in_number,
-        in_string,
-        in_string_escape,
-        in_coment
-    } state_;
+    virtual int current_line() const { return current_line_; }
 
+private:
+    enum { pp_bom_test, pp_in_bom_1, pp_in_bom_2, pp_start, pp_escape, pp_ignore_lf } pp_state_;
+    enum { start, in_symbol, in_string, in_string_escape, in_coment,
+        num_digit_start, num_sign, num_digits, num_hex, num_exp_start,
+        num_frac_digits, num_exp_start_digits, num_exp } state_;
+    bool cr_;
+    int current_line_;
     int nest_level_;
     std::vector<uint8_t> value_;
+    void process(uint8_t ch);
 };
 
 
@@ -113,10 +126,10 @@ public:
     virtual void loon_number(const char * utf8, size_t utf8_len) = 0;
     // Note: the string given to loon_string() and loon_number() starts
     // at utf8 and contains utf8_len UTF-8 encoded bytes, i.e. the interval
-    // [utf8, utf8 + utf8_len). You must NOT assume there will be a nul
-    // sentinal byte at *(utf8 + utf8_len) to signal the end of the string.
-    // You must NOT assume that the occurance of a nul byte anywhere inside
-    // the [utf8, utf8+utf8_len) signals the end of the string.
+    // [utf8, utf8 + utf8_len). You must not assume the string is null
+    // terminated and you must not assume that a null signals the end of
+    // the string (because null is a valid UTF-8 code point and may occur
+    // within a string).
 
 private:
     bool at_list_start;

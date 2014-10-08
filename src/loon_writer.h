@@ -28,6 +28,7 @@
 
 
 #include <string>
+#include <cstdint>
 #include <vector>
 #include <stdexcept>
 
@@ -50,10 +51,25 @@ public:
 
     void dict_key(const std::string & key_name);
 
+    void loon_value(const std::string & value);
     void loon_null();
     void loon_bool(bool value);
+    void loon_dec_u32(uint32_t n);
+    void loon_dec_s32(int32_t n);
+    void loon_hex_u32(uint32_t n);
     void loon_string(const std::string & value);
     void loon_number(const std::string & value);
+
+private:
+    std::vector<uint8_t> buf_;
+    std::string newline_;
+    bool pretty_;
+    bool empty_list_;
+    bool suppress_indent_;
+    int indent_;
+
+    void write_newline();
+    void write_indent(unsigned = 0);
 };
 
 

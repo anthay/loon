@@ -347,26 +347,29 @@ void test()
     library a;
     a.name = "The British Library";
     a.books.push_back(library::book("Green Eggs and Ham", "Dr. Seuss"));
-    a.books.push_back(library::book("Gödel, Escher, Bach", "Douglas Hofstadter"));
+    a.books.push_back(library::book("G\xC3\xB6""del, Escher, Bach", "Douglas Hofstadter"));
 
     // if we serialise our object we'd expect the loon text to look like this
     const char * expected = {
-#if 0
+#if 1
+        "\n"
         "(dict\n"
-        "    \"name\" \"The British Library\"\n"
-        "    \"books\" (arry\n"
+        "    \"name\"  \"The British Library\"\n"
+        "    \"books\"  (arry\n"
         "        (dict\n"
-        "            \"name\" \"Green Eggs and Ham\"\n"
-        "            \"author\" \"Dr. Seuss\")\n"
+        "            \"author\"  \"Dr. Seuss\"\n"
+        "            \"name\"  \"Green Eggs and Ham\"\n"
+        "        )\n"
         "        (dict\n"
-        "            \"name\" \"Gödel, Escher, Bach\"\n"
-        "            \"author\" \"Douglas Hofstadter\")\n"
+        "            \"author\"  \"Douglas Hofstadter\"\n"
+        "            \"name\"  \"G\xC3\xB6""del, Escher, Bach\"\n"
+        "        )\n"
         "    )\n"
-        ")\n"
+        ")"
 #else
         " (dict \"name\" \"The British Library\""
         " \"books\" (arry (dict \"author\" \"Dr. Seuss\" \"name\" \"Green Eggs and Ham\")"
-        " (dict \"author\" \"Douglas Hofstadter\" \"name\" \"Gödel, Escher, Bach\")))"
+        " (dict \"author\" \"Douglas Hofstadter\" \"name\" \"G\xC3\xB6""del, Escher, Bach\")))"
 #endif
     };
     const std::string serialised_a(serialise(a));
@@ -658,7 +661,7 @@ void test()
         "    ; arry or dict structure or null\n"
         "    \"a number\" 1234\n"
         "    \"a boolean\" false\n"
-        "    \"a string\" \"any Unicode text except backslash and double qoute\"\n"
+        "    \"a string\" \"any Unicode text except backslash and double quote\"\n"
         "    \"a nothing (has no type or value)\" null\n"
         "\n"
         "    ; an arry is an ordered list of zero or more values enclosed between\n"
@@ -676,7 +679,7 @@ void test()
         "            \"name\" \"Green Eggs and Ham\"\n"
         "            \"author\" \"Dr. Seuss\")\n"
         "        (dict\n"
-        "            \"name\" \"Gödel, Escher, Bach\"\n"
+        "            \"name\" \"G\xC3\xB6""del, Escher, Bach\"\n"
         "            \"author\" \"Douglas Hofstadter\")\n"
         "    )\n"
         "\n"
@@ -710,7 +713,7 @@ void test()
     expected["key"] = var("value");
     expected["a number"] = var(1234);
     expected["a boolean"] = var::make_bool(false);
-    expected["a string"] = var("any Unicode text except backslash and double qoute");
+    expected["a string"] = var("any Unicode text except backslash and double quote");
     expected["a nothing (has no type or value)"] = var::make_null();
 
     expected["heterogeneous array"] = var::make_arry();
@@ -738,7 +741,7 @@ void test()
     expected["books"].push_back(var::make_dict());
     expected["books"][0]["name"] = var("Green Eggs and Ham");
     expected["books"][0]["author"] = var("Dr. Seuss");
-    expected["books"][1]["name"] = var("Gödel, Escher, Bach");
+    expected["books"][1]["name"] = var("G\xC3\xB6""del, Escher, Bach");
     expected["books"][1]["author"] = var("Douglas Hofstadter");
 
     expected["an empty arry"] = var::make_arry();
@@ -763,15 +766,74 @@ void test()
 
 
     const char * expected_loon = {
+#if 0
         " (dict \"a boolean\" false \"a nothing (has no type or value)\" null"
-        " \"a number\" 1234 \"a string\" \"any Unicode text except backslash and double qoute\""
+        " \"a number\" 1234 \"a string\" \"any Unicode text except backslash and double quote\""
         " \"an array of arrays\" (arry (arry 1 0 0) (arry 0 1 0) (arry 0 0 1))"
         " \"an empty arry\" (arry) \"an empty dict\" (dict)"
         " \"books\" (arry (dict \"author\" \"Dr. Seuss\" \"name\" \"Green Eggs and Ham\")"
-        " (dict \"author\" \"Douglas Hofstadter\" \"name\" \"Gödel, Escher, Bach\"))"
+        " (dict \"author\" \"Douglas Hofstadter\" \"name\" \"G\xC3\xB6""del, Escher, Bach\"))"
         " \"heterogeneous array\" (arry \"the\" 1 true \"brace style\") \"key\" \"value\""
         " \"loon\" (arry \"a foolish fellow?\" \"list oriented object notation?\" \"JSON done with S-expressions?\")"
         " \"one two\" (arry 1 2) \"three\" 3 \"twelve\" (arry 12))"
+#else
+        "\n"
+        "(dict\n"
+        "    \"a boolean\"  false\n"
+        "    \"a nothing (has no type or value)\"  null\n"
+        "    \"a number\"  1234\n"
+        "    \"a string\"  \"any Unicode text except backslash and double quote\"\n"
+        "    \"an array of arrays\"  (arry\n"
+        "        (arry\n"
+        "            1\n"
+        "            0\n"
+        "            0\n"
+        "        )\n"
+        "        (arry\n"
+        "            0\n"
+        "            1\n"
+        "            0\n"
+        "        )\n"
+        "        (arry\n"
+        "            0\n"
+        "            0\n"
+        "            1\n"
+        "        )\n"
+        "    )\n"
+        "    \"an empty arry\"  (arry)\n"
+        "    \"an empty dict\"  (dict)\n"
+        "    \"books\"  (arry\n"
+        "        (dict\n"
+        "            \"author\"  \"Dr. Seuss\"\n"
+        "            \"name\"  \"Green Eggs and Ham\"\n"
+        "        )\n"
+        "        (dict\n"
+        "            \"author\"  \"Douglas Hofstadter\"\n"
+        "            \"name\"  \"G\xC3\xB6""del, Escher, Bach\"\n"
+        "        )\n"
+        "    )\n"
+        "    \"heterogeneous array\"  (arry\n"
+        "        \"the\"\n"
+        "        1\n"
+        "        true\n"
+        "        \"brace style\"\n"
+        "    )\n"
+        "    \"key\"  \"value\"\n"
+        "    \"loon\"  (arry\n"
+        "        \"a foolish fellow?\"\n"
+        "        \"list oriented object notation?\"\n"
+        "        \"JSON done with S-expressions?\"\n"
+        "    )\n"
+        "    \"one two\"  (arry\n"
+        "        1\n"
+        "        2\n"
+        "    )\n"
+        "    \"three\"  3\n"
+        "    \"twelve\"  (arry\n"
+        "        12\n"
+        "    )\n"
+        ")"
+#endif
     };
 
     const std::string b(serialise(a));
@@ -799,7 +861,19 @@ namespace unit_test {
 using variant_usage_example::variant_reader;
 using variant_usage_example::serialise;
 
-
+// return given 's' with {\} {LF}, {\} {CR} and {\} {CR} {LF} line splice
+// sequences inserted before each and every character
+std::string insert_line_continuations(const std::string & s)
+{
+    std::string result;
+    for (size_t i = 0; i < s.size(); ++i) {
+        result += "\\\n";
+        result += "\\\r";
+        result += "\\\r\n";
+        result += s[i];
+    }
+    return result;
+}
 
 // feed all given 'loon_text' to the reader in one chunk
 var unserialise(const std::string & loon_text)
@@ -831,7 +905,7 @@ var unserialise(const std::string & loon_text, int chunk_size)
 // feed the given 'loon_text' to the unserialiser and test that the output is
 // the given 'expected'; repeat the test with varying chunk sizes
 // WARNING: O(n^2) execution time, n = loon_text.size()
-void test(const std::string & loon_text, const var & expected)
+void test2(const std::string & loon_text, const var & expected)
 {
     // test lots of different chunk sizes
     for (int chunk_size = 1; chunk_size <= (int)loon_text.size(); ++chunk_size)
@@ -839,6 +913,22 @@ void test(const std::string & loon_text, const var & expected)
 
     // test it also works when parsed in one big chunk
     TEST_EQUAL(unserialise(loon_text), expected);
+}
+
+// feed the given 'loon_text' to the unserialiser, excersising
+// BOM and line continuations
+void test(const std::string & loon_text, const var & expected)
+{
+    test2(loon_text, expected);
+
+    // do it all again but this time preceeded by a UTF-8 BOM
+    test2("\xEF\xBB\xBF" + loon_text, expected);
+
+    // and again with line continuations between every single byte
+    test2(insert_line_continuations(loon_text), expected);
+
+    // and again with multiple line continuations and a BOM
+    test2("\xEF\xBB\xBF" + insert_line_continuations(loon_text), expected);
 }
 
 // feed each of the given 'tests' to the unserialiser, the output
@@ -862,7 +952,6 @@ void test_simple_valid_loon()
             "   \t\t   null   \t\t\t\t         ",
             " \t\r\t \n\nnull\n\r\r    \t \t   \t ",
             "null;false",
-            "\xEF\xBB\xBFnull", // with UTF-8 BOM
             0
         };
         run_tests(tests, var::make_null());
@@ -876,7 +965,6 @@ void test_simple_valid_loon()
             "   \t\t   true   \t\t\t\t         ",
             " \t\r\t \n\ntrue\n\r\r    \t \t   \t ",
             "true;false",
-            "\xEF\xBB\xBFtrue", // with UTF-8 BOM
             0
         };
         run_tests(tests, var::make_bool(true));
@@ -890,7 +978,6 @@ void test_simple_valid_loon()
             "   \t\t   false   \t\t\t\t         ",
             " \t\r\t \n\nfalse\n\r\r    \t \t   \t ",
             "false;true;false",
-            "\xEF\xBB\xBF""false", // with UTF-8 BOM
             0
         };
         run_tests(tests, var::make_bool(false));
@@ -922,7 +1009,6 @@ void test_simple_valid_loon()
             ";comment\r\n(arry);another\n",
             "(arry);\\",
             "(arry);false",
-            "\xEF\xBB\xBF(arry)", // with UTF-8 BOM
             0
         };
         run_tests(tests, var::make_arry());
@@ -935,10 +1021,9 @@ void test_valid_loon_strings()
     test("\"\"", var(""));
     test("\"hello\"", var("hello"));
     test("\"hello\";comment", var("hello"));
-    test("\xEF\xBB\xBF\"abc\"", var("abc"));// with UTF-8 BOM
 
     // UTF-8 
-    test("\"Gödel\"", var("Gödel"));
+    test("\"G\xC3\xB6""del\"", var("G\xC3\xB6""del"));
 
     // loon backslash escapes
     test("\"\\\\\"", var("\\"));
@@ -952,10 +1037,12 @@ void test_valid_loon_strings()
     test("  \"\\t\";comment  ", var("\t"));
     test("\"\\\\\\\"\\/\\b\\f\\n\\r\\t\"", var("\\\"/\b\f\n\r\t"));
     test("\"\\\\$request:\\\"([^\\\"]+)\\\"\"", var("\\$request:\"([^\"]+)\""));
+    test2("\"o\\\r\\\rn\"", var("on")); // {o} {\} {CR} {\} {CR} {n} => {o} {n}
 
     // UTF-16 \uXXXX and \uXXXX\uYYYY
     test("\"\\u0000\"", var(std::string(1, '\0')));
     test("\"\\u0001\"", var(std::string(1, '\x01')));
+    test("\"G\\u00F6del\"", var("G\xC3\xB6""del"));
     {
         const uint8_t s[] = { 0, 1, 2, 0 };
         test("\"\\u0000\\u0001\\u0002\\u0000\"", var(std::string(s, s+sizeof(s))));
@@ -981,22 +1068,256 @@ void test_valid_loon_fixnums()
     test("1", var(1));
 //TBD    test("-1", var(-1));
     test("123;comment", var(123));
-    test("\xEF\xBB\xBF""1234", var(1234));// with UTF-8 BOM
 }
+
+
+
+void test_valid_loon_numbers()
+{
+    // make a specialised reader for the sole purpose of testing number parsing
+    class number_reader : private loon::reader {
+    public:
+        number_reader()
+        {
+            // set the reader up ready to process a stream of loon values
+            reader::process_chunk("(arry ", 6, false/*is_last_chunk*/);
+        }
+
+        // feed the loon text to be parsed to this function
+        void test_number(const std::string & num)
+        {
+            num_ = num;
+
+            // feed the given number to the reader one character at a time
+            const char * p = num.c_str();
+            const char * const p_end = p + num.size();
+            for (; p != p_end; ++p)
+                reader::process_chunk(p, 1, false/*is_last_chunk*/);
+
+            // give the reader some white space, which should cause it
+            // to emit the number we just gave it
+            got_number_ = false;
+            reader::process_chunk(" ", 1, false/*is_last_chunk*/);
+            TEST_EQUAL(got_number_, true);
+        }
+
+    private:
+        std::string num_;
+        bool got_number_;
+
+        virtual void loon_dict() {}
+        virtual void loon_arry() {}
+        virtual void loon_end() {}
+        virtual void loon_string(const char *, size_t) {}
+        virtual void loon_null() {}
+        virtual void loon_bool(bool) {}
+
+        virtual void loon_number(const char * p, size_t len)
+        {
+            got_number_ = true;
+            TEST_EQUAL(std::string(p, p + len), num_);
+        }
+    };
+
+
+
+    const char * const decimal[] = {
+        "0",
+        "00",
+        "000",
+        "9",
+        "99",
+        "999",
+        "1234567890",
+
+        "9.",
+        "99.",
+        "999.",
+        "9.9",
+        "99.9",
+        "999.9",
+        "9.99",
+        "9.999",
+        "999.999",
+
+        "9.e9",
+        "99.e9",
+        "999.e9",
+        "9.e99",
+        "99.e99",
+        "999.e99",
+        "9.9e9",
+        "99.9e9",
+        "999.9e9",
+        "9.99e9",
+        "9.999e9",
+        "999.999e99",
+        "9.e-9",
+        "9.9e-9",
+        "999.999e-99",
+        "9.e+9",
+        "9.9e+9",
+        "999.999e+99",
+        "9e9",
+        "99e9",
+        "999e9",
+        "9e99",
+        "99e99",
+        "999e99",
+        "9e+9",
+        "99e+9",
+        "999e+9",
+        "999e+99",
+        "999e-99",
+
+        "9.E9",
+        "99.E9",
+        "999.E9",
+        "9.E99",
+        "99.E99",
+        "999.E99",
+        "9.9E9",
+        "99.9E9",
+        "999.9E9",
+        "9.99E9",
+        "9.999E9",
+        "999.999E99",
+        "9.E-9",
+        "9.9E-9",
+        "999.999E-99",
+        "9.E+9",
+        "9.9E+9",
+        "999.999E+99",
+        "9E9",
+        "99E9",
+        "999E9",
+        "9E99",
+        "99E99",
+        "999E99",
+        "9E+9",
+        "99E+9",
+        "999E+9",
+        "999E+99",
+        "999E-99",
+
+        "1e1",
+        "0.2",
+        "1e00",
+        "1.e0",
+        "7.8e99",
+        "0.9e+9",
+        "0.9e-9",
+        "0.9E9",
+        "9.9E+9",
+        "9.9E-9",
+        "9.e9",
+        "9.e-9",
+        "1234567890.0123456789",
+        "1234567890.0123456789e0",
+        "1234567890.0123456789e01",
+        "1234567890.0123456789e012",
+        "1234567890.0123456789e+12",
+        "1234567890.0123456789e-12",
+        "100.001",
+        "0.999",
+
+        0
+    };
+    
+    const char * const hex[] = {
+
+        "0x9",
+        "0x99",
+        "0x999",
+        "0xa",
+        "0xaa",
+        "0xaaa",
+        "0xabcdef",
+        "0x0123456789abcdef",
+        "0x0",
+        "0x00",
+        "0x000",
+        "0x0001",
+        "0x00010",
+        "0x000100",
+        "0xA",
+        "0xAA",
+        "0xAAA",
+        "0xABCDEF",
+        "0x0123456789ABCDEF",
+        "0X9",
+        "0X99",
+        "0X999",
+        "0XA",
+        "0XAA",
+        "0XAAA",
+        "0XABCDEF",
+        "0X0123456789ABCDEF",
+        "0xF",
+        "0xFF",
+        "0xFFF",
+        "0xFFFF",
+        "0xFFFFF",
+        "0xFFFFFF",
+        "0xFFFFFFF",
+        "0xFFFFFFFF",
+        "0xFFFFFFFFF",
+        "0xFFFFFFFFFF",
+        "0xFFFFFFFFFFF",
+        "0xFFFFFFFFFFFF",
+        "0xFFFFFFFFFFFFF",
+        "0xFFFFFFFFFFFFFF",
+        "0xFFFFFFFFFFFFFFF",
+        "0xFFFFFFFFFFFFFFFF",
+
+        0
+    };
+
+    number_reader reader;
+
+    const std::string plus("+");
+    const std::string minus("-");
+
+    for (const char * const * p = decimal; *p; ++p) {
+        reader.test_number(*p);
+        reader.test_number(plus + *p);
+        reader.test_number(minus + *p);
+    }
+
+    for (const char * const * p = hex; *p; ++p) {
+        reader.test_number(*p);
+    }
+}
+
+
+
 
 
 
 std::string make_random_string()
 {
     std::ostringstream oss;
-    oss << "TBD" << rand();
+#if 0
+    oss
+        << "TBD"
+        << static_cast<char>(rand() % 0x80)
+        << rand();
+#endif
+    const int len = rand() % 25;
+    for (int i = 0; i < len; ++i) {
+        if (rand() % 20 == 0)
+            oss << static_cast<char>(rand() % 0x20);//TBD UTF-8
+        else
+            oss << static_cast<char>(rand() % 0x60 + 0x20);//TBD UTF-8
+    }
+
     return oss.str();
 }
 
 var make_random_arry(int maxsize);
 var make_random_dict(int maxsize);
 
-var make_random_var(int maxsize)
+var make_random_object(int maxsize)
 {
     const int size = rand() % maxsize;
     switch (rand() % (maxsize ? 6 : 4)) {
@@ -1018,7 +1339,7 @@ var make_random_arry(int maxsize)
     const int size = maxsize ? rand() % maxsize : 0;
     var result(var::make_arry(size));
     for (int i = 0; i < size; ++i)
-        result[i] = make_random_var(maxsize - 1);
+        result[i] = make_random_object(maxsize - 1);
     return result;
 }
 
@@ -1027,20 +1348,22 @@ var make_random_dict(int maxsize)
     const int size = maxsize ? rand() % maxsize : 0;
     var result(var::make_dict());
     for (int i = 0; i < size; ++i)
-        result[make_random_string()] = make_random_var(maxsize - 1);
+        result[make_random_string()] = make_random_object(maxsize - 1);
     return result;
 }
 
-void soaktest(int iterations)
+void soaktest()
 {
-    const int maxsize = 20;
+    const int maxsize = 40;
+    int iterations = 20;
 
     while (iterations--) {
         // create a, an arbitrary (random) structure containing arbitrary (random) data
-        const var a(make_random_dict(maxsize));
+        const var a(make_random_object(maxsize));
 
         // create b, a loon text representation of a
         const std::string b(serialise(a));
+        //std::cout << "\n----------------\n";
         //std::cout << b.size() << '\n';
         //std::cout << b << '\n';
 
@@ -1063,7 +1386,8 @@ void test()
     test_simple_valid_loon();
     test_valid_loon_strings();
     test_valid_loon_fixnums();
-    soaktest(10);
+    test_valid_loon_numbers();
+    soaktest();
     //test reset() TBD
 }
 
