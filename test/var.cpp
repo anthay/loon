@@ -39,6 +39,11 @@ var::var(int i)
 {
 }
 
+var::var(double i)
+: type_(type_float), float_(i)
+{
+}
+
 var::var(const std::string & s)
 : type_(type_string), string_(s)
 {
@@ -79,6 +84,7 @@ void var::swap(var & v)
     std::swap(type_, v.type_);
     std::swap(bool_, v.bool_);
     std::swap(int_, v.int_);
+    std::swap(float_, v.float_);
     std::swap(string_, v.string_);
     std::swap(arry_, v.arry_);
     std::swap(dict_, v.dict_);
@@ -111,6 +117,14 @@ var & var::operator[](const std::string & s)
     return dict_[s];
 }
 
+bool var::key_exists(const std::string & s) const
+{
+    if (type_ != type_dict)
+        throw std::exception("var::key_exists() type not dict");
+    return dict_.find(s) != dict_.end();
+}
+
+
 bool var::equal(const var & v) const
 {
     if (type_ != v.type_)
@@ -120,6 +134,7 @@ bool var::equal(const var & v) const
     case type_null:		return true;
     case type_bool:     return bool_ == v.bool_;
     case type_int:      return int_ == v.int_;
+    case type_float:    return std::abs(float_ - v.float_) <= 1e-5 * std::abs(float_);
     case type_string:   return string_ == v.string_;
     case type_arry:     return arry_ == v.arry_;
     case type_dict:     return dict_ == v.dict_;
@@ -140,6 +155,13 @@ int var::as_int() const
     if (type_ == type_int)
         return int_;
     throw std::exception("var::as_int type not type_int");
+}
+
+double var::as_float() const
+{
+    if (type_ == type_float)
+        return float_;
+    throw std::exception("var::as_float type not type_float");
 }
 
 std::string var::as_string() const

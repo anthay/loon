@@ -21,15 +21,26 @@
     ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
     OTHER DEALINGS IN THE SOFTWARE.
 
-    Made by Anthony C. Hay in 2014 in Wiltshire, England. See http://loonfile.info. */
+    Made by Anthony Hay in 2014 in Wiltshire, England.
+    See http://loonfile.info.
+*/
 
 
 #include "loon_writer.h"
 
 
 namespace loon {
-
+namespace writer {
 namespace {
+
+
+//        ///////   //////     ///    //       
+//       //     // //    //   // //   //       
+//       //     // //        //   //  //       
+//       //     // //       //     // //       
+//       //     // //       ///////// //       
+//       //     // //    // //     // //       
+////////  ///////   //////  //     // //////// 
 
 // return a usable const char pointer to the given 's'
 inline const char * c_str(const std::vector<uint8_t> & s)
@@ -37,9 +48,10 @@ inline const char * c_str(const std::vector<uint8_t> & s)
     return s.empty() ? "" : reinterpret_cast<const char *>(&s[0]);
 }
 
+// return true iff 'ch' is U+0000 .. U+001F or U+007F (ASCII control codes)
 inline bool is_ctrl(uint8_t ch)
 {
-    return ch < 0x20;
+    return ch < 0x20 || ch == 0x7F;
 }
 
 // return ASCII hex digit representing given 'c', which MUST be in range 0..15
@@ -60,6 +72,7 @@ void escape(std::vector<uint8_t> & utf8_out, const std::string & utf8_in)
         const uint8_t * const end = p + utf8_in.size();
         for (; p != end; ++p) {
             switch (*p) {
+            // note: Loon does not require that {/} be escaped
             case '\\':  utf8_out.push_back('\\');   utf8_out.push_back('\\');   break;
             case '"':   utf8_out.push_back('\\');   utf8_out.push_back('\"');   break;
             case '\b':  utf8_out.push_back('\\');   utf8_out.push_back('b');    break;
@@ -86,10 +99,9 @@ void escape(std::vector<uint8_t> & utf8_out, const std::string & utf8_in)
     utf8_out.push_back('"');
 }
 
-
-// p -> JUST PAST BUFFER *END*; return pointer to first char in result
+// write 'n' to buffer that ENDS at 'p'; return pointer to first char of output
 template <typename scalar_type>
-uint8_t * unsigned_to_decimal(uint8_t * p, scalar_type n)
+char * unsigned_to_decimal(char * p, scalar_type n)
 {
     do {
         *--p = '0' + n % 10;
@@ -99,8 +111,9 @@ uint8_t * unsigned_to_decimal(uint8_t * p, scalar_type n)
     return p;
 }
 
+// write 'n' to buffer that ENDS at 'p'; return pointer to first char of output
 template<typename scalar_type>
-uint8_t * signed_to_decimal(uint8_t * p, scalar_type n)
+char * signed_to_decimal(char * p, scalar_type n)
 {
     if (n < 0) {
         do {
@@ -120,12 +133,12 @@ uint8_t * signed_to_decimal(uint8_t * p, scalar_type n)
     return p;
 }
 
-// p -> JUST PAST BUFFER *END*; return pointer to first char in result
+// write 'n' to buffer that ENDS at 'p'; return pointer to first char of output
 template<typename scalar_type>
-uint8_t * unsigned_to_hexadecimal(uint8_t * p, scalar_type n)
+char * unsigned_to_hexadecimal(char * p, scalar_type n)
 {
     // output 0x00, 0x0000, 0x00000000 or 0x0000000000000000
-    static_assert(CHAR_BIT == 8, "code assumes bytes are 8-bits wide");
+    static_assert(CHAR_BIT == 8, "code assumes bytes are exactly 8-bits wide");
     for (int i = 0; i < sizeof(n) * 2; ++i) {
         *--p = hexchar(n & 0xF);
         n >>= 4;
@@ -136,36 +149,22 @@ uint8_t * unsigned_to_hexadecimal(uint8_t * p, scalar_type n)
     return p;
 }
 
-void write_unsigned32(std::vector<uint8_t> & utf8_out, uint32_t n)
-{
-    uint8_t buf[10]; // 0 .. 4294967295
-    uint8_t * const end = buf + sizeof(buf);
-    uint8_t * const p = unsigned_to_decimal(end, n);
-    utf8_out.resize(end - p);
-    std::copy(p, end, &utf8_out[0]);
-}
-
-void write_signed32(std::vector<uint8_t> & utf8_out, int32_t n)
-{
-    uint8_t buf[11]; // -2147483648 .. 2147483647
-    uint8_t * const end = buf + sizeof(buf);
-    uint8_t * const p = signed_to_decimal(end, n);
-    utf8_out.resize(end - p);
-    std::copy(p, end, &utf8_out[0]);
-}
-
-
 static const unsigned space_required = 0x00000001;
 
-}
+} // anonymous namespace
 
 
-void writer::write_newline()
-{
-    write(newline_.c_str(), newline_.size());
-}
 
-void writer::write_indent(unsigned flags)
+
+////////  ////////  //// //     //    ///    //////// //////// 
+//     // //     //  //  //     //   // //      //    //       
+//     // //     //  //  //     //  //   //     //    //       
+////////  ////////   //  //     // //     //    //    //////   
+//        //   //    //   //   //  /////////    //    //       
+//        //    //   //    // //   //     //    //    //       
+//        //     // ////    ///    //     //    //    //////// 
+
+void base::write_indent(unsigned flags)
 {
     if (pretty_) {
         if (suppress_indent_) {
@@ -174,10 +173,9 @@ void writer::write_indent(unsigned flags)
         }
         else {
             write(newline_.c_str(), newline_.size());
-
-            static const char spaces[] = { "    " };
-            for (int i = 0; i < indent_; ++i)
-                write(spaces, sizeof(spaces)-1);
+            const int num_spaces = spaces_per_indent_ * indent_;
+            std::string spaces(num_spaces, ' ');
+            write(spaces.c_str(), num_spaces);
         }
     }
     else if (flags & space_required) {
@@ -188,13 +186,20 @@ void writer::write_indent(unsigned flags)
 
 
 
+////////  //     // ////////  //       ////  //////  
+//     // //     // //     // //        //  //    // 
+//     // //     // //     // //        //  //       
+////////  //     // ////////  //        //  //       
+//        //     // //     // //        //  //       
+//        //     // //     // //        //  //    // 
+//         ///////  ////////  //////// ////  //////  
 
 
-void writer::write(const char * utf8, int utf8_len)
-{
-}
+// the must be overridden by user to collect writer output
+void base::write(const char * utf8, int len) {}
 
-void writer::begin_arry()
+
+void base::loon_arry_begin()
 {
     write_indent(space_required);
     write("(arry", 5);
@@ -202,7 +207,7 @@ void writer::begin_arry()
     ++indent_;
 }
 
-void writer::begin_dict()
+void base::loon_dict_begin()
 {
     write_indent(space_required);
     write("(dict", 5);
@@ -210,7 +215,7 @@ void writer::begin_dict()
     ++indent_;
 }
 
-void writer::end_arry()
+void base::loon_arry_end()
 {
     if (indent_)
         --indent_;
@@ -220,7 +225,7 @@ void writer::end_arry()
     empty_list_ = false;
 }
 
-void writer::end_dict()
+void base::loon_dict_end()
 {
     if (indent_)
         --indent_;
@@ -230,7 +235,7 @@ void writer::end_dict()
     empty_list_ = false;
 }
 
-void writer::dict_key(const std::string & value)
+void base::loon_dict_key(const std::string & value)
 {
     write_indent(space_required);
     escape(buf_, value);
@@ -239,50 +244,76 @@ void writer::dict_key(const std::string & value)
     suppress_indent_ = true; // place value on same line as key
 }
 
-void writer::loon_null()
+void base::loon_preformatted_value(const char * utf8, int len)
 {
     write_indent(space_required);
-    write("null", 4);
+    write(utf8, len);
     empty_list_ = false;
 }
 
-void writer::loon_bool(bool value)
+void base::loon_null()
 {
-    write_indent(space_required);
+    loon_preformatted_value("null", 4);
+}
+
+void base::loon_bool(bool value)
+{
     if (value)
-        write("true", 4);
+        loon_preformatted_value("true", 4);
     else
-        write("false", 5);
-    empty_list_ = false;
+        loon_preformatted_value("false", 5);
 }
 
-
-void writer::loon_string(const std::string & value)
+void base::loon_dec_u32(uint32_t n)
 {
-    write_indent(space_required);
+    char buf[10]; // 0 .. 4294967295
+    char * const end = buf + sizeof(buf);
+    char * const p = unsigned_to_decimal(end, n);
+    loon_preformatted_value(p, end - p);
+}
+
+void base::loon_dec_s32(int32_t n)
+{
+    char buf[11]; // -2147483648 .. 2147483647
+    char * const end = buf + sizeof(buf);
+    char * const p = signed_to_decimal(end, n);
+    loon_preformatted_value(p, end - p);
+}
+
+void base::loon_hex_u32(uint32_t n)
+{
+    char buf[10]; // 0x0 .. 0xFFFFFFFF
+    char * const end = buf + sizeof(buf);
+    char * const p = unsigned_to_hexadecimal(end, n);
+    loon_preformatted_value(p, end - p);
+}
+
+void base::loon_double(double n)
+{
+#if defined(_MSC_VER) && _MSC_VER < 1700
+    const std::string s(std::to_string((long double)n));
+#else
+    const std::string s(std::to_string(n));
+#endif
+    loon_preformatted_value(s.c_str(), s.length());
+}
+
+void base::loon_string(const std::string & value)
+{
     escape(buf_, value);
-    write(c_str(buf_), buf_.size());
-    empty_list_ = false;
+    loon_preformatted_value(c_str(buf_), buf_.size());
 }
 
-void writer::loon_number(const std::string & value)
-{
-    write_indent(space_required);
-    write(value.c_str(), value.size());
-    empty_list_ = false;
-}
-
-
-writer::writer()
-: newline_("\n"), pretty_(true), empty_list_(false), suppress_indent_(false), indent_(0)
+base::base()
+: newline_("\n"), pretty_(true), empty_list_(false), suppress_indent_(false), indent_(0), spaces_per_indent_(4)
 {
 }
 
-writer::~writer()
+base::~base()
 {
 }
 
 
 
 
-}
+}} // end of namespace loon::writer

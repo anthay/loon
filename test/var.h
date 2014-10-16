@@ -38,12 +38,13 @@
 // no boost); space and speed efficiencies are not part of this requirement) 
 class var {
 public:
-    typedef enum { type_undefined, type_null, type_bool, type_int, type_string, type_arry, type_dict } variant_type;
+    typedef enum { type_undefined, type_null, type_bool, type_int, type_float, type_string, type_arry, type_dict } variant_type;
     typedef std::vector<var> arry_t;
     typedef std::map<std::string, var> dict_t;
 
     var();
     explicit var(int);
+    explicit var(double);
     explicit var(const std::string &);
     static var make_arry(int size = 0);
     static var make_dict();
@@ -57,11 +58,13 @@ public:
     var & operator[](const std::string &); // for access to type_dict objects only
     void push_back(const var &); // for appending to type_arry objects only
 
+    bool key_exists(const std::string &) const; // for type_dict objects only
     variant_type type() const { return type_; }
     bool equal(const var & rhs) const;
 
     bool as_bool() const;
     int as_int() const;
+    double as_float() const;
     std::string as_string() const;
     arry_t as_arry_t() const;
     dict_t as_dict_t() const;
@@ -70,6 +73,7 @@ private:
     variant_type type_;
     bool bool_;
     int int_;
+    double float_;
     std::string string_;
     arry_t arry_;
     dict_t dict_;

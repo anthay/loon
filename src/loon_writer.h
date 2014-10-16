@@ -24,7 +24,9 @@
     ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
     OTHER DEALINGS IN THE SOFTWARE.
 
-    Made by Anthony C. Hay in 2014 in Wiltshire, England. See http://loonfile.info. */
+    Made by Anthony Hay in 2014 in Wiltshire, England.
+    See http://loonfile.info.
+*/
 
 
 #include <string>
@@ -34,22 +36,23 @@
 
 
 namespace loon {
+namespace writer {
 
 
 
-class writer {
+class base {
 public:
-    writer();
-    virtual ~writer();
+    base();
+    virtual ~base();
 
-    virtual void write(const char * utf8, int utf8_len) = 0;
+    virtual void write(const char * utf8, int len) = 0;
 
-    void begin_arry();
-    void begin_dict();
-    void end_arry();
-    void end_dict();
+    void loon_arry_begin();
+    void loon_arry_end();
 
-    void dict_key(const std::string & key_name);
+    void loon_dict_begin();
+    void loon_dict_end();
+    void loon_dict_key(const std::string & key_name);
 
     void loon_value(const std::string & value);
     void loon_null();
@@ -57,8 +60,12 @@ public:
     void loon_dec_u32(uint32_t n);
     void loon_dec_s32(int32_t n);
     void loon_hex_u32(uint32_t n);
+    void loon_double(double n);
     void loon_string(const std::string & value);
-    void loon_number(const std::string & value);
+    void loon_preformatted_value(const char * utf8, int len);
+
+    void set_pretty(bool on) { pretty_ = on; }
+    void set_spaces_per_indent(int n) { spaces_per_indent_ = n; }
 
 private:
     std::vector<uint8_t> buf_;
@@ -67,11 +74,11 @@ private:
     bool empty_list_;
     bool suppress_indent_;
     int indent_;
+    int spaces_per_indent_;
 
-    void write_newline();
     void write_indent(unsigned = 0);
 };
 
 
-}
+}} // end of namespace loon::writer
 #endif
