@@ -136,8 +136,14 @@ bool var::equal(const var & v) const
     case type_int:      return int_ == v.int_;
     case type_float:    return std::abs(float_ - v.float_) <= 1e-5 * std::abs(float_);
     case type_string:   return string_ == v.string_;
-    case type_arry:     return arry_ == v.arry_;
-    case type_dict:     return dict_ == v.dict_;
+    case type_arry:     
+        if (arry_ != v.arry_)
+            {int i = 0;}
+        return arry_ == v.arry_;
+    case type_dict:
+        if (dict_ != v.dict_)
+            {int i = 0;}
+        return dict_ == v.dict_;
     }
 
     throw std::exception("var::equal unknown type");

@@ -39,10 +39,12 @@ namespace  loon {
 namespace reader {
 
 
+// exception error codes
 enum error_id {
     no_error = 0,
+    // no exception will be thrown with this id
 
-    bad_number,
+    bad_number = 100,
     // The parser encountered a number containing invalid characters.
     // (e.g. 99abc, 9e+, are not a valid numbers.)
 
@@ -53,7 +55,7 @@ enum error_id {
     dict_key_is_not_string,
     // The parser encountered a dict key that was not a string. A dict is a list of
     // zero or more key/value pairs where the value may be any object but the key must
-    // be a string. For example, (dict "key" 123) is valie but (dict true 123) is not.
+    // be a string. For example, (dict "key" 123) is valid but (dict true 123) is not.
 
     incomplete_hex_number,
     // A number that started '0x' was not followed by at least one valid hexadecimal digit. (0-9a-fA-F)
@@ -74,8 +76,8 @@ enum error_id {
     // The input text ended before the closing double quote in the string token.
 
     unescaped_control_character_in_string,
-    // There is a character between U+0000 and U+001F inclusive in the string token. These
-    // are not allowed. To include shuch a character use either the UTF-16 escape (\uXXXX)
+    // There is a character between U+0000 and U+001F inclusive or U+007F in the string token.
+    // These are not allowed. To include shuch a character use either the UTF-16 escape (\uXXXX)
     // or other backslash escape sequences such as \n.
 
     unexpected_or_unknown_symbol,
@@ -87,7 +89,7 @@ enum error_id {
     // The string ended before the backslash escape sequence was completed.
 
     string_escape_unknown,
-    // Within a string the backslash escape was not follwoed by one of these characters:
+    // Within a string the backslash escape was not followed by one of these characters:
     // {\} {"} {/} {b} {f} {n} {r} {t} {u}.
 
     bad_utf16_string_escape,
@@ -101,7 +103,7 @@ enum error_id {
 
     orphan_utf16_surrogate_trail,
     // Within a string a backslash {u} UTF-16 escape sequence was encountered that is
-    // a UTF-16 surrogate trail value, but this was not preceeded by a valid UTF-16 surrogate
+    // a UTF-16 surrogate trail value, but this was not preceded by a valid UTF-16 surrogate
     // lead value. (A surrogate lead is in the range \uD800...\uDBFF, a surrogate trail is
     // in the range \uDC00...\uDFFF.)
 
@@ -126,10 +128,14 @@ protected:
 };
 
 
+// number types for loon::reader::base::loon_number()
+enum num_type {
+    num_dec_int,    // -123456  decimal integer
+    num_hex_int,    // 0x12ABC  hexadecimal integer, always positive
+    num_float       // +9.3e-3  decimal fraction
+};
 
-enum num_type { num_dec_int, num_hex_int, num_float };
-
-// ignore this class: it is a loon reader implementation detail
+// ignore this class: it is a Loon reader implementation detail
 class lexer {
 
 public:
@@ -164,56 +170,82 @@ private:
 };
 
 
-// process loon text into a virtual function call for each loon token found;
-// you should derive your own reader from this class to receive the loon data
+// process Loon text into a virtual function call for each Loon token found;
+// you should derive your own reader from this class to receive the Loon "events"
 class base : private lexer {
 
 public:
     base();
     virtual ~base();
 
+    // Reset the reader to it's initial pristine state ready to start
+    // processing a new Loon file.
     virtual void reset();
 
 
     /*  void process_chunk(const char * utf8, size_t len, bool is_last_chunk)
 
-        You call process_chunk() to feed your loon text to the parser. The
+        You call process_chunk() to feed your Loon text to the parser. The
         parser will call the corresponding virtual functions below for each
-        loon token it reads.
+        Loon token it reads.
 
         Notes about UTF-8 encoding
-        - The loon reader assumes the given text is in valid UTF-8 encoding.
+        - The Loon reader assumes the given text is in valid UTF-8 encoding.
         - The reader does no general UTF-8 validation of the given source text.
         - If the UTF-8 BOM forms the first three bytes (0xEF 0xBB 0xBF) of the
-          given loon source text it is ignored.
+          given Loon source text it is ignored.
         - If the UTF-8 BOM appears anywhere other than the first three bytes
-          of the loon source text it is parsed like any other UTF-8 character.
+          of the Loon source text it is parsed like any other UTF-8 character.
     */
     lexer::process_chunk; // just republish the lexer function
 
-    // you override these seven virtual functions to collect the loon data
+    // int current_line()
+    // The reader keeps a running count of the lines as it processes them.
+    // This function returns the current value of that count.
+    lexer::current_line; // just republish the lexer function
+
+
+    // You must override these nine virtual functions to collect the Loon data.
+
+    // 1. The reader encountered the start of an arry. All subsequent events
+    // will be for elements of this arry, until the _corresponding_ loon_arry_end
+    // event.
     virtual void loon_arry_begin() = 0;
+
+    // 2. This closes an arry opened by the corresponding loon_arry_begin event.
     virtual void loon_arry_end() = 0;
 
+    // 3. The reader encountered the start of a dict. All subsequent events
+    // will be for elements of this dict, until the corresponding loon_dict_end
+    // event.
     virtual void loon_dict_begin() = 0;
-    virtual void loon_dict_end() = 0;
-    virtual void loon_dict_key(const char * p, size_t len) = 0;
 
+    // 4. This closes an arry opened by the corresponding loon_dict_begin event.
+    virtual void loon_dict_end() = 0;
+
+    // 5. You will get pairs of loon_dict_key/some Loon object events for
+    // every entry in the dict. See loon_string() for information about the
+    // parameters.
+    virtual void loon_dict_key(const char * utf8, size_t len) = 0;
+
+    // 6. The reader encountered the Loon value null.
     virtual void loon_null() = 0;
+
+    // 7. The reader encountered either the Loon value true or false.
     virtual void loon_bool(bool value) = 0;
 
-    // The string given to loon_string() starts at p and contains len
-    // UTF-8 encoded bytes, i.e. the interval [p, p + len). You must
+    // 8. The reader encountered a Loon string value.
+    // The string given to loon_string() starts at utf8 and contains len
+    // UTF-8 encoded bytes, i.e. the interval [utf8, utf8 + len). You must
     // not assume the string is null terminated and you must not assume
     // that a null signals the end of the string (because null is a
     // valid UTF-8 code point and may occur within a string).
-    virtual void loon_string(const char * p, size_t len) = 0;
+    virtual void loon_string(const char * utf8, size_t len) = 0;
 
-    // [p, p+len) is a string representing either a hex or decimal integer
-    // or a decimal floating point number, as indicated by 'ntype'
-    virtual void loon_number(const char * p, size_t len, num_type ntype) = 0;
-
-    lexer::current_line;
+    // 9. The reader encountered a Loon numbeer value.
+    // [utf8, utf8 + len) is a string representing either a hex or decimal
+    // integer or a decimal floating point number, as indicated by 'ntype'.
+    virtual void loon_number(const char * utf8, size_t len, num_type ntype) = 0;
 
 private:
     bool at_list_start_;
@@ -228,7 +260,6 @@ private:
     virtual void atom_string(const std::vector<uint8_t> &);
     virtual void atom_number(const std::vector<uint8_t> &, num_type);
 };
-
 
 
 }} // end on namespace loon::reader

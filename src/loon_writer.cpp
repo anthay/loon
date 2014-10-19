@@ -28,6 +28,8 @@
 
 #include "loon_writer.h"
 
+#include <cmath>
+
 
 namespace loon {
 namespace writer {
@@ -41,6 +43,22 @@ namespace {
 //       //     // //       ///////// //       
 //       //     // //    // //     // //       
 ////////  ///////   //////  //     // //////// 
+
+
+#if defined(_MSC_VER) && _MSC_VER < 1700
+inline std::string to_string(double n)
+{
+    // MSVC 2010 was pre-C++2011 - they had to_string(),
+    // but not an overload that takes a double
+    return std::to_string(static_cast<long double>(n));
+}
+#else
+inline std::string to_string(double n)
+{
+    return std::to_string(n);
+}
+#endif
+
 
 // return a usable const char pointer to the given 's'
 inline const char * c_str(const std::vector<uint8_t> & s)
@@ -172,7 +190,8 @@ void base::write_indent(unsigned flags)
             write("  ", 2);
         }
         else {
-            write(newline_.c_str(), newline_.size());
+            if (need_newline_)
+                write(newline_.c_str(), newline_.size());
             const int num_spaces = spaces_per_indent_ * indent_;
             std::string spaces(num_spaces, ' ');
             write(spaces.c_str(), num_spaces);
@@ -181,6 +200,7 @@ void base::write_indent(unsigned flags)
     else if (flags & space_required) {
         write(" ", 1);
     }
+    need_newline_ = true;
 }
 
 
@@ -290,12 +310,20 @@ void base::loon_hex_u32(uint32_t n)
 
 void base::loon_double(double n)
 {
-#if defined(_MSC_VER) && _MSC_VER < 1700
-    const std::string s(std::to_string((long double)n));
-#else
-    const std::string s(std::to_string(n));
-#endif
+    // TBD - this is wrong because to_string(1.2) will give "1.2" or "1,2"
+    // depending on the locale, but the Loon spec. says only the former is valid.
+    std::string s(to_string(n));
+
+    // to_string(0.0) -> "0", thus the implied type of decimal fraction
+    // is lost. To avoid this we look for decimal fraction decorations here.
+    const std::string::size_type npos(std::string::npos);
+    if (s.find('.') == npos && s.find('e') == npos && s.find('E') == npos) 
+        s.append(".0"); // (tip of the hat to Google Chromium json_writer.cc)
+
     loon_preformatted_value(s.c_str(), s.length());
+
+    // Note: Should we throw an exception on any NaN, infinity, denormalised, ...?
+    // This whole floating point area needs a good going over.
 }
 
 void base::loon_string(const std::string & value)
@@ -305,7 +333,7 @@ void base::loon_string(const std::string & value)
 }
 
 base::base()
-: newline_("\n"), pretty_(true), empty_list_(false), suppress_indent_(false), indent_(0), spaces_per_indent_(4)
+: newline_("\n"), need_newline_(false), pretty_(true), empty_list_(false), suppress_indent_(false), indent_(0), spaces_per_indent_(4)
 {
 }
 

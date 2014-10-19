@@ -45,13 +45,111 @@ namespace {
 //       //     // //    // //     // //       
 ////////  ///////   //////  //     // //////// 
 
-
-// return {msg + 's'} as a string
-std::string append(std::string msg, const std::vector<uint8_t> & s)
+#if defined(_MSC_VER) && _MSC_VER < 1700
+inline std::string to_string(int n)
 {
-    if (s.empty())
-        return msg + "''";
-    return msg + "'" + std::string(&s[0], &s[0] + s.size()) + "'";
+    // MSVC 2010 was pre-C++2011 - they had to_string(),
+    // but not an overload that takes an int
+    return std::to_string(static_cast<long long>(n));
+}
+#else
+inline std::string to_string(int n)
+{
+    return std::to_string(n);
+}
+#endif
+
+
+std::string throw_msg(error_id id, int line)
+{
+    std::string msg("Syntax error R"); // (R for reader, in case we ever have writer exceptions)
+    msg += to_string(id);
+    msg += " on line ";
+    msg += to_string(line);
+    msg += ": ";
+
+    switch (id) {
+    case bad_number:
+        msg +=  "Bad number."
+                " For example, it contains invalid characters (e.g. 99X) or is incomplete (e.g. 9e+).";
+        break;
+    case bad_hex_number:
+        msg +=  "Bad hexadecimal number."
+                " For example, it contains invalid characters (e.g. 0x99X).";
+        break;
+    case dict_key_is_not_string:
+        msg +=  "dict key is not a string."
+                " For example, (dict \"123\" 456) is valid but (dict 123 456) is not.";
+        break;
+    case incomplete_hex_number:
+        msg += "Incomplete hexadecimal number."
+               " A number that started '0x' was not followed by at least one valid hexadecimal digit. (0-9a-fA-F).";
+        break;
+    case missing_arry_or_dict_symbol:
+        msg += "Missing arry or dict symbol."
+               " Something other than 'arry' or 'dict' was found immediately after an open bracket.";
+        break;
+    case missing_dict_value:
+        msg += "dict has a key with no associated value."
+               " For example, (dict \"key\").";
+        break;
+    case unbalanced_close_bracket:
+        msg += "Unbalanced close bracket."
+               " The text contains a close bracket for which there was no corresponding open bracket.";
+        break;
+    case unclosed_list:
+        msg += "Unclosed list."
+               " The text ended before the list was closed with a ')'. E.g. \"(arry 1 2 3\".";
+        break;
+    case unclosed_string:
+        msg += "Unclosed string."
+               " The text ended before the string was closed with a double quote.";
+        break;
+    case unescaped_control_character_in_string:
+        msg += "Unescaped control character in string."
+               " Characters between U+0000 and U+001F inclusive and U+007F must be escaped (e.g. \"\\u000A\").";
+        break;
+    case unexpected_or_unknown_symbol:
+        msg += "Unexpected or unknown symbol."
+               " For example, \"(arry arry)\" - the second arry is unexpected.";
+        break;
+    case string_escape_incomplete:
+        msg += "String escape incomplete."
+               " The string ended before the backslash escape sequence was completed.";
+        break;
+    case string_escape_unknown:
+        msg += "String escape unknown."
+               " Within a string the backslash escape was not followed by any of {\\} {\"} {/} {b} {f} {n} {r} {t} {u}.";
+        break;
+    case bad_utf16_string_escape:
+        msg += "Bad UTF-16 string escape."
+               " Within a string the backslash {u} escape was not followed by four hexadecimal digits (e.g. \\u12AB).";
+        break;
+    case bad_or_missing_utf16_surrogate_trail:
+        msg += "Bad or missing UTF-16 surrogate trail."
+               " Within a string a UTF-16 surrogate lead value was not followed by a valid UTF-16 surrogate trail value.";
+        break;
+    case orphan_utf16_surrogate_trail:
+        msg += "Orphan UTF-16 surrogate trail."
+               " Within a string a UTF-16 surrogate trail value was not preceded by a valid UTF-16 surrogate lead value.";
+        break;
+    case internal_error_unknown_state:
+        msg += "Internal Loon error: Unknown state.";
+        break;
+    case internal_error_inconsistent_state:
+        msg += "Internal Loon error: Inconsistent state.";
+        break;
+    }
+
+    return msg;
+}
+
+std::string throw_msg(error_id id, int line, const std::vector<uint8_t> & value)
+{
+    std::string msg(throw_msg(id, line));
+    if (!value.empty())
+        msg += " Near '" + std::string(&value[0], &value[0] + value.size()) + "'.";
+    return msg;
 }
 
 // return a usable const char pointer to the given 's'
@@ -92,7 +190,7 @@ inline uint32_t utf16_combine_surrogate_pair(uint32_t lead, uint32_t trail)
 
 inline bool is_digit(uint8_t ch)
 {
-    return '0' <= ch && ch <= '9';//TBD
+    return '0' <= ch && ch <= '9';
 }
 
 inline bool is_hexdigit(uint8_t ch)
@@ -115,7 +213,7 @@ inline bool is_whitespace(uint8_t ch)
 
 inline bool is_newline(uint8_t ch)
 {
-    return ch == '\n' || ch == '\r';//TBD
+    return ch == '\n' || ch == '\r';
 }
 
 bool non_symbol(uint8_t ch)
@@ -331,7 +429,7 @@ void lexer::process(uint8_t ch)
         else if (ch == ')') { // the end of a list
             if (nest_level_ == 0)
                 throw exception(unbalanced_close_bracket, current_line_,
-                    "syntax error: unbalanced ')'");
+                    throw_msg(unbalanced_close_bracket, current_line_).c_str());
             --nest_level_;
             end_list();
             // remain in start state
@@ -360,14 +458,12 @@ void lexer::process(uint8_t ch)
     case in_string:
         if (is_ctrl(ch)) {
             throw exception(unescaped_control_character_in_string, current_line_,
-                "syntax error: unescaped control character in string");
+                throw_msg(unescaped_control_character_in_string, current_line_).c_str());
         }
         else if (ch == '"') { // the end of the string atom
             const error_id id = expand_loon_string_escapes(value_);
-            if (id != no_error) {
-                throw exception(id, current_line_,
-                    expand_exception_msg(id).c_str());
-            }
+            if (id != no_error)
+                throw exception(id, current_line_, throw_msg(id, current_line_).c_str());
             atom_string(value_);
             state_ = start;
         }
@@ -400,7 +496,7 @@ void lexer::process(uint8_t ch)
         break;
 
     case in_coment:
-        if (is_newline(ch))
+        if (is_newline(ch)) // {CR} or {LF} => start
             state_ = start;
         // else remain in in_coment state
         break;
@@ -426,7 +522,7 @@ void lexer::process(uint8_t ch)
             }
             else { // {1-9} {xX} => syntax error
                 throw exception(bad_number, current_line_,
-                    append("syntax error: bad number ", value_).c_str());
+                    throw_msg(bad_number, current_line_, value_).c_str());
             }
         }
         state_ = num_digits;
@@ -454,7 +550,7 @@ void lexer::process(uint8_t ch)
         else { // number merges into symbol, e.g. 99a = > bad number
             value_.push_back(ch);
             throw exception(bad_number, current_line_,
-                append("syntax error: bad number ", value_).c_str());
+                throw_msg(bad_number, current_line_, value_).c_str());
         }
         break;
 
@@ -476,7 +572,7 @@ void lexer::process(uint8_t ch)
         else {// got something like 9.X => bad number
             value_.push_back(ch);
             throw exception(bad_number, current_line_,
-                append("syntax error: bad number ", value_).c_str());
+                throw_msg(bad_number, current_line_, value_).c_str());
         }
         break;
 
@@ -492,7 +588,7 @@ void lexer::process(uint8_t ch)
         else { // {0-9} {eE} {ch: any char except + - or 0-9} => syntax error
             value_.push_back(ch);
             throw exception(bad_number, current_line_,
-                append("syntax error: bad number ", value_).c_str());
+                throw_msg(bad_number, current_line_, value_).c_str());
         }
         break;
 
@@ -504,7 +600,7 @@ void lexer::process(uint8_t ch)
         else { // {0-9} {eE} {+-} {ch: any char except 0-9} => syntax error
             value_.push_back(ch);
             throw exception(bad_number, current_line_,
-                append("syntax error: bad number ", value_).c_str());
+                throw_msg(bad_number, current_line_, value_).c_str());
         }
         break;
 
@@ -522,7 +618,7 @@ void lexer::process(uint8_t ch)
         else { // got something like 9e9e => bad number
             value_.push_back(ch);
             throw exception(bad_number, current_line_,
-                append("syntax error: bad number ", value_).c_str());
+                throw_msg(bad_number, current_line_, value_).c_str());
         }
         break;
 
@@ -540,19 +636,19 @@ void lexer::process(uint8_t ch)
             }
             else // no hex digits following the {0} {xX} => an incomplete hex number
                 throw exception(incomplete_hex_number, current_line_,
-                    append("syntax error: incomplete hex number", value_).c_str());
+                    throw_msg(incomplete_hex_number, current_line_, value_).c_str());
         }
         else { // got something like 0xAX => bad hex number
             value_.push_back(ch);
             throw exception(bad_hex_number, current_line_,
-                append("syntax error: bad hex number ", value_).c_str());
+                throw_msg(bad_hex_number, current_line_, value_).c_str());
         }
         break;
 
     default:
         // all known states have been delt with above
         throw exception(internal_error_unknown_state, current_line_,
-            "internal error: unknown state");
+            throw_msg(internal_error_unknown_state, current_line_).c_str());
     }
 }
 
@@ -678,7 +774,7 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
         case in_string:
         case in_string_escape:
             throw exception(unclosed_string, current_line_,
-                "syntax error: unclosed string");
+                throw_msg(unclosed_string, current_line_).c_str());
 
         case num_second_digit:
         case num_digits:
@@ -693,14 +789,14 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
 
         case num_exp_start_digits:
             throw exception(bad_number, current_line_,
-                append("syntax error: bad number", value_).c_str());
+                throw_msg(bad_number, current_line_, value_).c_str());
 
         case num_hex:
             if (value_.size() > 2)
                 atom_number(value_, num_hex_int);
             else
                 throw exception(incomplete_hex_number, current_line_,
-                    append("syntax error: incomplete hex number", value_).c_str());
+                    throw_msg(incomplete_hex_number, current_line_, value_).c_str());
             break;
 
         case num_sign:
@@ -711,7 +807,7 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
 
         if (nest_level_)
             throw exception(unclosed_list, current_line_,
-                "syntax error: unclosed list");
+                throw_msg(unclosed_list, current_line_).c_str());
 
         state_ = start;
     }
@@ -756,7 +852,7 @@ void base::toggle_dict_state()
         if (list_state_.back() == dict_allow_key) {
             // keys must be strings
             throw exception(dict_key_is_not_string, current_line_,
-                "syntax error: dict key is not a string");
+                throw_msg(dict_key_is_not_string, current_line_).c_str());
         }
         else if (list_state_.back() == dict_require_value)
             list_state_.back() = dict_allow_key;
@@ -797,7 +893,7 @@ void base::begin_list()
 {
     if (at_list_start_)
         throw exception(missing_arry_or_dict_symbol, current_line_,
-            "syntax error: expected 'arry' or 'dict', got '('");
+            throw_msg(missing_arry_or_dict_symbol, current_line_).c_str());
     at_list_start_ = true;
 }
 
@@ -805,10 +901,10 @@ void base::end_list()
 {
     if (at_list_start_)
         throw exception(missing_arry_or_dict_symbol, current_line_,
-            "syntax error: expected 'arry' or 'dict', got ')'");
+            throw_msg(missing_arry_or_dict_symbol, current_line_).c_str());
     if (list_state_.empty())
         throw exception(internal_error_inconsistent_state, current_line_,
-            "internal error: inconsistent state");
+            throw_msg(internal_error_inconsistent_state, current_line_).c_str());
 
     if (list_state_.back() == arry_allow_value)
         loon_arry_end();
@@ -816,10 +912,10 @@ void base::end_list()
         loon_dict_end();
     else if (list_state_.back() == dict_require_value)
         throw exception(missing_dict_value, current_line_,
-            "syntax error: dict has key with no associated value");
+            throw_msg(missing_dict_value, current_line_).c_str());
     else
         throw exception(internal_error_inconsistent_state, current_line_,
-            "internal error: inconsistent state");
+            throw_msg(internal_error_inconsistent_state, current_line_).c_str());
 
     list_state_.pop_back();
 }
@@ -839,7 +935,7 @@ void base::atom_symbol(const std::vector<uint8_t> & value)
         }
         else
             throw exception(missing_arry_or_dict_symbol, current_line_,
-                append("syntax error: expected 'arry' or 'dict', got ", value).c_str());
+                throw_msg(missing_arry_or_dict_symbol, current_line_, value).c_str());
         at_list_start_ = false;
     }
     else {
@@ -851,7 +947,7 @@ void base::atom_symbol(const std::vector<uint8_t> & value)
             loon_null();
         else
             throw exception(unexpected_or_unknown_symbol, current_line_,
-                append("syntax error: unexpected or unknown symbol ", value).c_str());
+                throw_msg(unexpected_or_unknown_symbol, current_line_, value).c_str());
     }
 }
 
@@ -859,7 +955,7 @@ void base::atom_string(const std::vector<uint8_t> & value)
 {
     if (at_list_start_)
         throw exception(missing_arry_or_dict_symbol, current_line_,
-            append("syntax error: expected 'arry' or 'dict', got ", value).c_str());
+            throw_msg(missing_arry_or_dict_symbol, current_line_, value).c_str());
 
     if (list_state_.empty())
         loon_string(c_str(value), value.size());
@@ -880,7 +976,7 @@ void base::atom_number(const std::vector<uint8_t> & value, num_type ntype)
 {
     if (at_list_start_)
         throw exception(missing_arry_or_dict_symbol, current_line_,
-            append("syntax error: expected 'arry' or 'dict', got ", value).c_str());
+            throw_msg(missing_arry_or_dict_symbol, current_line_, value).c_str());
 
     toggle_dict_state();
     loon_number(c_str(value), value.size(), ntype);
