@@ -30,8 +30,8 @@
 
 
 #include <string>
-#include <cstdint>
 #include <vector>
+#include <cstdint>
 
 
 namespace loon {

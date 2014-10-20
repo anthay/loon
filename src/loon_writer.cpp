@@ -29,6 +29,7 @@
 #include "loon_writer.h"
 
 #include <cmath>
+#include <sstream>
 
 
 namespace loon {
@@ -43,21 +44,6 @@ namespace {
 //       //     // //       ///////// //       
 //       //     // //    // //     // //       
 ////////  ///////   //////  //     // //////// 
-
-
-#if defined(_MSC_VER) && _MSC_VER < 1700
-inline std::string to_string(double n)
-{
-    // MSVC 2010 was pre-C++2011 - they had to_string(),
-    // but not an overload that takes a double
-    return std::to_string(static_cast<long double>(n));
-}
-#else
-inline std::string to_string(double n)
-{
-    return std::to_string(n);
-}
-#endif
 
 
 // return a usable const char pointer to the given 's'
@@ -165,6 +151,19 @@ char * unsigned_to_hexadecimal(char * p, scalar_type n)
     *--p = 'x';
     *--p = '0';
     return p;
+}
+
+// return given 'n' as a string
+std::string to_string(double n)
+{
+    std::ostringstream oss;             // initialise a big pile of std library code
+    oss.imbue(std::locale::classic());  // use '.' for a decimal point, regardless of global locale
+    oss << n;                           // format the number
+    std::string s(oss.str());           // get the formatted number, such as "1.23" or "0"(!)
+    const std::string::size_type npos(std::string::npos);
+    if (s.find('.') == npos && s.find('e') == npos && s.find('E') == npos)
+        s.append(".0");                 // "1" => "1.0" (so we don't lose the implied type)
+    return s;
 }
 
 static const unsigned space_required = 0x00000001;
@@ -310,19 +309,10 @@ void base::loon_hex_u32(uint32_t n)
 
 void base::loon_double(double n)
 {
-    // TBD - this is wrong because to_string(1.2) will give "1.2" or "1,2"
-    // depending on the locale, but the Loon spec. says only the former is valid.
     std::string s(to_string(n));
-
-    // to_string(0.0) -> "0", thus the implied type of decimal fraction
-    // is lost. To avoid this we look for decimal fraction decorations here.
-    const std::string::size_type npos(std::string::npos);
-    if (s.find('.') == npos && s.find('e') == npos && s.find('E') == npos) 
-        s.append(".0"); // (tip of the hat to Google Chromium json_writer.cc)
-
     loon_preformatted_value(s.c_str(), s.length());
 
-    // Note: Should we throw an exception on any NaN, infinity, denormalised, ...?
+    // TBD - Should we throw an exception on any NaN, infinity, denormalised, ...?
     // This whole floating point area needs a good going over.
 }
 

@@ -33,6 +33,8 @@
 
 #include <iostream>
 
+namespace {
+
 
 unsigned g_test_count;      // count of number of unit tests executed
 unsigned g_fault_count;     // count of number of unit tests that fail
@@ -68,20 +70,15 @@ unsigned g_fault_count;     // count of number of unit tests that fail
 
 
 
-#if defined(_MSC_VER) && _MSC_VER < 1700
-inline std::string to_string(int n)
+// return given 'n' as string
+std::string to_string(int n)
 {
-    // MSVC 2010 was pre-C++2011 - they had to_string(),
-    // but not an overload that takes an int
-    return std::to_string(static_cast<long long>(n));
+    char buf[40];
+    sprintf(buf, "%d", n);
+    return buf;
 }
-#else
-inline std::string to_string(int n)
-{
-    return std::to_string(n);
-}
-#endif
 
+}
 
 
 
@@ -218,7 +215,7 @@ std::vector<std::string> unserialise(const std::string & s)
         // as each token is parsed out of the text. In this application
         // We don't need to do anything more than pass the text straight
         // to the base::process_chunk() function.
-        base::process_chunk; // just republish the loon::reader::base function
+        using base::process_chunk; // just republish the loon::reader::base function
 
     private:
         // 3. We'll get a loon_arry_begin event when the "(arry" token is parsed.
@@ -442,7 +439,7 @@ std::map<std::string, std::string> unserialise(const std::string & s)
         }
 
         // 4. The caller must feed the Loon text to be processed to this function.
-        base::process_chunk; // again, just republish the base implementation
+        using base::process_chunk; // again, just republish the base implementation
 
         // 5. When asked we will return the unserialised map object
         // if, and only if, (iff) the processed text was in the expected
@@ -719,7 +716,7 @@ public:
 
     // 4. The caller must feed the Loon text to be processed to this function.
     // (republish base function as there is nothing additional to do here)
-    base::process_chunk;
+    using base::process_chunk;
 
     // 5. When asked we will return the unserialised variant object
     // iff the processed text was in the expected format, which we will
@@ -1166,7 +1163,7 @@ section_map unserialise(const std::string & s)
             state_ = start;
         }
 
-        base::process_chunk;
+        using base::process_chunk;
 
         const section_map & final_value() const
         {
@@ -1397,6 +1394,19 @@ void run_tests(const char * const tests[], const var & expected)
 }
 
 
+// test given 'v' serialises to 'expected_loon_text'
+void test(const var & v, const std::string & expected_loon_text)
+{
+    const std::string s(serialise(v));
+    TEST_EQUAL(s, expected_loon_text);
+    if (s != expected_loon_text) {
+        std::cout
+            << "[expected '" << expected_loon_text
+            << "' got '" << s << "']\n";
+    }
+}
+
+
 
 void test_simple_valid_loon()
 {
@@ -1544,6 +1554,21 @@ void test_numbers()
     test("-99.9",       var(-99.9));
     test("0.;",         var(0.0));
 
+    test(var(0.0),              "0.0");
+    test(var(0.1),              "0.1");
+    test(var(1.0),              "1.0");
+    test(var(1.23),             "1.23");
+
+    test(var(-0.0),             "-0.0");
+    test(var(-0.1),             "-0.1");
+    test(var(-1.0),             "-1.0");
+    test(var(-1.23),            "-1.23");
+
+//    test(var(1e23),             "1e23"); // or "1e+23" or "1e+023" or ...
+//    test(var(0.0123456789e23),  "0.0123456789e23");
+//    test(var(0.0123456789e-23), "0.0123456789e-23");
+
+
 
     // make a specialised reader for the sole purpose of testing number parsing
     class number_reader : private loon::reader::base {
@@ -1688,10 +1713,21 @@ void test_numbers()
         "1234567890.0123456789e-12",
         "100.001",
         "0.999",
+        "0.000000",
 
         0
     };
     
+    const std::string plus("+");
+    const std::string minus("-");
+
+    number_reader reader;
+    for (const char * const * p = valid_decimal; *p; ++p) {
+        reader.test_number(*p);
+        reader.test_number(plus + *p);
+        reader.test_number(minus + *p);
+    }
+
     const char * const valid_hex[] = {
         "0x9",
         "0x99",
@@ -1740,16 +1776,6 @@ void test_numbers()
         0
     };
 
-    const std::string plus("+");
-    const std::string minus("-");
-
-    number_reader reader;
-    for (const char * const * p = valid_decimal; *p; ++p) {
-        reader.test_number(*p);
-        reader.test_number(plus + *p);
-        reader.test_number(minus + *p);
-    }
-
     // hex numbers may not be preceeded with + or -
     for (const char * const * p = valid_hex; *p; ++p)
         reader.test_number(*p);
@@ -1775,6 +1801,7 @@ void test_numbers()
 
         0
     };
+
     for (const char * const * p = nearly_numbers; *p; ++p) {
         number_reader r;
         TEST_EXCEPTION(r.test_number(*p), loon::reader::exception);
@@ -2013,9 +2040,9 @@ var make_random_object(int maxsize)
 
 void soaktest()
 {
-    // the bigger these two settings the more of a soaking you get
+    // the bigger these two settings the more of a soaking you get, and the longer it takes
     const int maxsize = 50;
-    int iterations = 20;
+    int iterations = 50;
 
     while (iterations--) {
         // create a, an arbitrary (random) structure containing arbitrary (random) data

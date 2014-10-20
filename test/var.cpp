@@ -25,7 +25,8 @@
 
 #include "var.h"
 
-#include <exception>
+#include <stdexcept>
+#include <cmath>
 
 
 
@@ -99,28 +100,28 @@ var & var::operator=(var rhs)
 var & var::operator[](int i)
 {
     if (type_ != type_arry)
-        throw std::exception("var::operator[int] type not arry");
+        throw std::runtime_error("var::operator[int] type not arry");
     return arry_[i];
 }
 
 void var::push_back(const var & v)
 {
     if (type_ != type_arry)
-        throw std::exception("var::push_back type not arry");
+        throw std::runtime_error("var::push_back type not arry");
     arry_.push_back(v);
 }
 
 var & var::operator[](const std::string & s)
 {
     if (type_ != type_dict)
-        throw std::exception("var::operator[std::string] type not dict");
+        throw std::runtime_error("var::operator[std::string] type not dict");
     return dict_[s];
 }
 
 bool var::key_exists(const std::string & s) const
 {
     if (type_ != type_dict)
-        throw std::exception("var::key_exists() type not dict");
+        throw std::runtime_error("var::key_exists() type not dict");
     return dict_.find(s) != dict_.end();
 }
 
@@ -136,57 +137,51 @@ bool var::equal(const var & v) const
     case type_int:      return int_ == v.int_;
     case type_float:    return std::abs(float_ - v.float_) <= 1e-5 * std::abs(float_);
     case type_string:   return string_ == v.string_;
-    case type_arry:     
-        if (arry_ != v.arry_)
-            {int i = 0;}
-        return arry_ == v.arry_;
-    case type_dict:
-        if (dict_ != v.dict_)
-            {int i = 0;}
-        return dict_ == v.dict_;
+    case type_arry:     return arry_ == v.arry_;
+    case type_dict:     return dict_ == v.dict_;
+    default:
+        throw std::runtime_error("var::equal unknown type");
     }
-
-    throw std::exception("var::equal unknown type");
 }
 
 bool var::as_bool() const
 {
     if (type_ == type_bool)
         return bool_;
-    throw std::exception("var::as_bool type not type_bool");
+    throw std::runtime_error("var::as_bool type not type_bool");
 }
 
 int var::as_int() const
 {
     if (type_ == type_int)
         return int_;
-    throw std::exception("var::as_int type not type_int");
+    throw std::runtime_error("var::as_int type not type_int");
 }
 
 double var::as_float() const
 {
     if (type_ == type_float)
         return float_;
-    throw std::exception("var::as_float type not type_float");
+    throw std::runtime_error("var::as_float type not type_float");
 }
 
 std::string var::as_string() const
 {
     if (type_ == type_string)
         return string_;
-    throw std::exception("var::as_string type not type_string");
+    throw std::runtime_error("var::as_string type not type_string");
 }
 
 var::arry_t var::as_arry_t() const
 {
     if (type_ == type_arry)
         return arry_;
-    throw std::exception("var::as_arry_t type not type_arry");
+    throw std::runtime_error("var::as_arry_t type not type_arry");
 }
 
 var::dict_t var::as_dict_t() const
 {
     if (type_ == type_dict)
         return dict_;
-    throw std::exception("var::as_dict_t type not type_dict");
+    throw std::runtime_error("var::as_dict_t type not type_dict");
 }

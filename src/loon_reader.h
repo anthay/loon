@@ -29,10 +29,10 @@
 */
 
 
-#include <cstdint>
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <cstdint>
 
 
 namespace  loon {
@@ -197,12 +197,12 @@ public:
         - If the UTF-8 BOM appears anywhere other than the first three bytes
           of the Loon source text it is parsed like any other UTF-8 character.
     */
-    lexer::process_chunk; // just republish the lexer function
+    using lexer::process_chunk; // just republish the lexer function
 
     // int current_line()
     // The reader keeps a running count of the lines as it processes them.
     // This function returns the current value of that count.
-    lexer::current_line; // just republish the lexer function
+    using lexer::current_line; // just republish the lexer function
 
 
     // You must override these nine virtual functions to collect the Loon data.

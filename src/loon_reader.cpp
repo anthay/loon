@@ -139,6 +139,9 @@ std::string throw_msg(error_id id, int line)
     case internal_error_inconsistent_state:
         msg += "Internal Loon error: Inconsistent state.";
         break;
+    case no_error:
+        msg += "No error!";
+        break;
     }
 
     return msg;
@@ -282,23 +285,6 @@ int write_utf32_as_utf8(uint8_t * dst, uint32_t n)
     return p - dst;
 }
 
-
-std::string expand_exception_msg(error_id id)
-{
-    switch (id) {
-    case string_escape_incomplete:
-        return "syntax error: incomplete escape sequence in string";
-    case string_escape_unknown:
-        return "syntax error: unknown escape sequence in string";
-    case bad_utf16_string_escape:
-        return "syntax error: bad UTF-16 escape sequence in string";
-    case bad_or_missing_utf16_surrogate_trail:
-        return "syntax error: bad or missing UTF-16 surrogate trail escape sequence in string";
-    case orphan_utf16_surrogate_trail:
-        return "syntax error: orphan UTF-16 surrogate trail escape sequence in string";
-    }
-    return "syntax error: bad escape sequence in string";
-}
 
 error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
 {
@@ -802,6 +788,10 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
         case num_sign:
         case in_symbol:
             atom_symbol(value_);
+            break;
+
+        case start:
+        case in_coment:
             break;
         }
 
