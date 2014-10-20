@@ -215,7 +215,7 @@ void base::write_indent(unsigned flags)
 
 
 // the must be overridden by user to collect writer output
-void base::write(const char * utf8, int len) {}
+void base::write(const char *, int) {}
 
 
 void base::loon_arry_begin()
