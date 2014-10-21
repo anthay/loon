@@ -1107,7 +1107,7 @@ typedef std::map<std::string, entry_map> section_map;
         // get a value
         std::string value = ini["section1"]["entry1"];
 
-    The code below shows how we might un/setialise an section_map from/to Loon.
+    The code below shows how we might un/serialise a section_map from/to Loon.
 */
 
 
@@ -1274,7 +1274,7 @@ void test()
     within each section entry names are unique. Some INI files are
     not like this and may have several entries in a given section
     with the same name. To model such a structure in Loon you'd
-    probably use arrys instead of dicts. But I'm not going there.
+    probably use arrys instead of dicts.
 
     We again used a state machine to keep track of the parse, which
     for complex structures is going to be rather tedious and error-
@@ -1282,7 +1282,7 @@ void test()
     into the target data structure, which is potentially fast and
     memory efficient. If you don't want to derive a reader for every
     data structure you could just create one reader to read the Loon
-    data into a variant, as we did in Tutorials 5 & 6, which you
+    data into a variant, as we did in Tutorial 5, which you
     would then have to query as necessary.
 
     I hope you found these tutorials of use. The rest of this file

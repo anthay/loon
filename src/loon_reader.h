@@ -242,7 +242,7 @@ public:
     // valid UTF-8 code point and may occur within a string).
     virtual void loon_string(const char * utf8, size_t len) = 0;
 
-    // 9. The reader encountered a Loon numbeer value.
+    // 9. The reader encountered a Loon number value.
     // [utf8, utf8 + len) is a string representing either a hex or decimal
     // integer or a decimal floating point number, as indicated by 'ntype'.
     virtual void loon_number(const char * utf8, size_t len, num_type ntype) = 0;
