@@ -1462,7 +1462,7 @@ aren't any and if you find one please let the author know.
 
 ## 6. LICENSE
 
-**loon-cpp** is hereby released into the public domain by it's author
+**loon-cpp** is hereby released into the public domain by its author
 
 >This is free and unencumbered software released into the public domain.
 
