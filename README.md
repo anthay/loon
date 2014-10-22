@@ -1,4 +1,5 @@
 # loon-cpp
+_Release 1.00_
 
 **Loon** is a data serialisation file format based on S-expressions.
 See <http://loonfile.info> for more information about the Loon file format.
@@ -16,7 +17,7 @@ Loon is formally documented at <http://loonfile.info>. Here is a brief
 introduction to Loon taken from that site:
 
 ~~~html
-; ### a self-explanitory Loon sample file ###
+; ### a self-explanatory Loon sample file ###
 
 ; - Loon is a data serialisation file format based on S-expressions
 ; - Loon is designed to be easy for both people and machines to read
@@ -87,36 +88,77 @@ introduction to Loon taken from that site:
 
 ### 0.2 An overview of the loon-cpp library
 
-- loon-cpp contains a Loon text reader and a Loon text writer. These are independent of each other. You can use the reader only, the writer only or both together.
+- loon-cpp contains a Loon text reader and a Loon text writer. These are
+  independent of each other. You can use the reader only, the writer only or
+  both together.
 
-- To use the reader you add `src/loon_reader.cpp` to your build and `#include src/loon_reader.h` in your source. To use the writer you add `src/loon_writer.cpp` to your build and `#include src/loon_writer.h` in your source. These four files constitute the loon-cpp library. All other files in the distribution are part of the documentation or unit test suite and do not need to be included in your build.
+- To use the reader you add `src/loon_reader.cpp` to your build and
+  `#include src/loon_reader.h` in your source. To use the writer you add
+  `src/loon_writer.cpp` to your build and `#include src/loon_writer.h` in your
+  source. These four files constitute the loon-cpp library. All other files in
+  the distribution are part of the documentation or unit test suite and do not
+  need to be included in your build.
 
-- To create a reader you derive a class from `loon::reader::base`. Your class must override the `base::loon_XXXX` virtual functions. You feed the Loon text to the `base::process_chunk` function. The `loon::reader::base` class will invoke the appropriate `loon_XXXX` virtual function for each token it reads from the text. Your functions must use these events in a manor appropriate to your application.
+- To create a reader you derive a class from `loon::reader::base`. Your class
+  must override the `base::loon_XXXX` virtual functions. You feed the Loon text
+  to the `base::process_chunk` function. The `loon::reader::base` class will
+  invoke the appropriate `loon_XXXX` virtual function for each token it reads
+  from the text. Your functions must use these events in a manor appropriate
+  to your application.
 
-- `loon::reader::base` is a streaming parser that turns Loon source text into a series of tokens and forwards those tokens to higher-level user code as soon as they are encountered. This means the reader is small and fast. Also, it can process arbitrarily large source text as it does not attempt to parse the whole text into an in-memory tree representation. That doesn't stop you building a parser on top of `loon::reader::base` that *does* build an in-memory tree from the Loon tokens, but you are not forced to do this. And this is also the disadvantage of the streaming parser: you will need to code a parser on top of `loon::reader::base` appropriate to your specific application.
+- `loon::reader::base` is a streaming parser that turns Loon source text into
+  a series of tokens and forwards those tokens to higher-level user code as soon
+  as they are encountered. This means the reader is small and fast. Also, it can
+  process arbitrarily large source text as it does not attempt to parse the
+  whole text into an in-memory tree representation. That doesn't stop you
+  building a parser on top of `loon::reader::base` that *does* build
+  in-memory tree from the Loon tokens, but you are not forced to do this. And
+  this is also the disadvantage of the streaming parser: you will need to code
+  a parser on top of `loon::reader::base` appropriate to your specific
+  application.
 
-- To create a Loon text writer you derive a class from `loon::writer::base`. Your class must override the `base::write` virtual function. You invoke the `base::loon_XXXX` functions to serialise your data in a manor appropriate to your application. The `loon::writer::base` class will invoke your write virtual function to record the Loon text as it produces it. You can buffer this text or write it to a file as required.
+- To create a Loon text writer you derive a class from `loon::writer::base`.
+  Your class must override the `base::write` virtual function. You invoke the
+  `base::loon_XXXX` functions to serialise your data in a manor appropriateto
+  your application. `loon::writer::base` class will invoke your write virtual
+  function to record the Loon text as it produces it. You can buffer this
+  text or write it to a file as required.
 
-- All text produced and consumed by both `loon::reader::base` and `loon::writer::base` are assumed to be UTF-8 encoded. loon-cpp components do no UTF-8 validation. If you feed UTF-8 text to `loon::reader::base` and `loon::writer::base` you will get UTF-8 output. If you feed them invalid UTF-8 what you get back is undefined.
+- All text produced and consumed by both `loon::reader::base` and
+  `loon::writer::base` are assumed to be UTF-8 encoded. loon-cpp components
+  do no UTF-8 validation. If you feed UTF-8 text to `loon::reader::base` and
+  `loon::writer::base` you will get UTF-8 output. If you feed them invalid
+  UTF-8 what you get back is undefined.
 
-- The `loon::reader::base` handles syntax errors in the Loon source text by throwing a `loon::reader::exception`. The exception contains some context information about the nature and location of the syntax error. If the `loon::reader` throws an exception its internal state is undefined. The only two safe uses of the reader object are to destroy it or to call `loon::reader::base::reset`. The latter action returns the reader to its initial state, ready to process Loon text from the beginning.
+- The `loon::reader::base` handles syntax errors in the Loon source text by
+  throwing a `loon::reader::exception`. The exception contains some context
+  information about the nature and location of the syntax error. If the
+  `loon::reader` throws an exception its internal state is undefined. The
+  only two safe uses of the reader object are to destroy it or to call
+  `loon::reader::base::reset`. The latter action returns the reader to its
+  initial state, ready to process Loon text from the beginning.
 
-- The `loon::writer::base` throws no Loon-specific exceptions. (It may throw standard library exceptions such as `std::bad_alloc`.) If you do not correctly invoke the `loon::writer::base::loon_XXXX` functions to serialise your data the Loon text produced will not be well formed or will not accurately reflect the data you wish to serialise.
+- The `loon::writer::base` throws no Loon-specific exceptions. (It may throw
+  standard library exceptions such as `std::bad_alloc`.) If you do not
+  correctly invoke the `loon::writer::base::loon_XXXX` functions to serialise
+  your data the Loon text produced will not be well formed or will not
+  accurately reflect the data you wish to serialise.
 
 
 
 
 ## 1. BUILDING
 
-The loon-cpp library has no separate library build process. Just compile the reader and/or
-writer files into your project as described above.
+The loon-cpp library has no separate library build process. Just compile the
+reader and/or writer files into your project as described above.
 
 
 
 ##2. TESTING
 
-The loon-cpp library is distributed with a set of unit tests in the file `test/test.cpp`.
-The tutorials are also in this file. Compile this file and run it like this
+The loon-cpp library is distributed with a set of unit tests in the file
+`test/test.cpp`. The tutorials are also in this file. Compile this file and run
+it like this
 
 ### OSX / clang++
 ~~~bash
@@ -143,7 +185,9 @@ $
 
 ### Windows / MSVC 2010
 
-Open a Visual Studio command prompt (on the Start menu under Microsoft Visual Studio 2010/Visual Studio Tools). Change to the directory containing the loon-cpp distribution.
+Open a Visual Studio command prompt (on the Start menu under Microsoft
+Visual Studio 2010/Visual Studio Tools). Change to the directory containing
+the loon-cpp distribution.
  
 ~~~html
 C:\loon-cpp>dir /b
@@ -174,8 +218,8 @@ tests executed 1966, tests failed 0
 C:\loon-cpp\build\msvc2010>
 ~~~
 
-You can of course just double-click the `test.vcxproj` file and open the project
-in the Visual Studio IDE.
+You can of course just double-click the `test.vcxproj` file and open the
+project in the Visual Studio IDE.
 
 
 
@@ -201,9 +245,11 @@ serialise() function might look something like this
 
 #### 3.1.1 Code
 
-The code for these tutorials is in `test/test.cpp`. Each tutorial is in its own namespace. Look for `namespace tutorial_1`.
+The code for these tutorials is in `test/test.cpp`. Each tutorial is in its own
+namespace. Look for `tutorial_1`.
 
-Here is the code of this tutorial. Follow the steps numbered 1 to 6 in the comments to see how it's done.
+Here is the code of this tutorial. Follow the steps numbered 1 to 6 in the
+comments to see how it's done.
 
 ~~~cpp
 // return the Loon text representing the given vector of UTF-8 strings 'v'
@@ -949,14 +995,23 @@ var unserialise(const std::string & t)
 #### 3.5.2 Test
 
 The test code for this tutorial is too long to include in this README. Look
-in `test/test.cpp` for `namespace tutorial_5`.
+in `test/test.cpp` for `tutorial_5`.
 
 
 #### 3.5.3 Commentary
 
-In Tutorials 2 and 4 we read Loon text directly into a specific sample C++ data structure. Those readers were constrained to only interpret Loon text that corresponded to those data structures. The advantage is that once parsed, you have the data in the target data structure - you don't have to go querying some intermediate representation to find the values you need. The disadvantage is that you'll need to write a specific parser for each data structure you want to populate from Loon text.
+In Tutorials 2 and 4 we read Loon text directly into a specific sample C++ data
+structure. Those readers were constrained to only interpret Loon text that
+corresponded to those data structures. The advantage is that once parsed, you
+have the data in the target data structure - you don't have to go querying some
+intermediate representation to find the values you need. The disadvantage is
+that you'll need to write a specific parser for each data structure you want to
+populate from Loon text.
 
-Conversely, this tutorial shows exactly the sort of *read it all into an in-memory tree representation* parser we've been talking about. It can read any valid Loon text into a variant data structure (see `test/var.cpp` and `test/var.h` for the implementation).
+Conversely, this tutorial shows exactly the sort of *read it all into an
+in-memory tree representation* parser we've been talking about. It can read any
+valid Loon text into a variant data structure (see `test/var.cpp` and
+`test/var.h` for the implementation).
 
 
 ### 3.6 Tutorial 6. Model an INI file in Loon
@@ -1341,7 +1396,7 @@ virtual void loon_number(const char * utf8, size_t len, num_type ntype) = 0;
 
 ### 4.2 `loon::reader::exception`
 
-If `loon::reader::base` encounteres a syntax error it will throw a
+If `loon::reader::base` encounters a syntax error it will throw a
 `loon::reader::exception`. You can catch this via the exception base class with
 
 ~~~cpp
@@ -1383,7 +1438,7 @@ enum error_id {
     // (e.g. 99abc, 9e+, are not a valid numbers.)
 
     bad_hex_number,
-    // The parser encountered a haxadecimal number containing invalid characters.
+    // The parser encountered a hexadecimal number containing invalid characters.
     // (e.g. 0x9X is not a valid number.)
 
     dict_key_is_not_string,
@@ -1411,7 +1466,7 @@ enum error_id {
 
     unescaped_control_character_in_string,
     // There is a character between U+0000 and U+001F inclusive or U+007F in the string token.
-    // These are not allowed. To include shuch a character use either the UTF-16 escape (\uXXXX)
+    // These are not allowed. To include such a character use either the UTF-16 escape (\uXXXX)
     // or other backslash escape sequences such as \n.
 
     unexpected_or_unknown_symbol,
@@ -1451,7 +1506,7 @@ enum error_id {
 
 ## 5. RELEASE NOTES
 
-### loon-cpp v0.01
+### loon-cpp Release 1.00
 
 #### Known Bugs
 

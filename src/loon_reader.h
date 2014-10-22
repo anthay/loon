@@ -49,7 +49,7 @@ enum error_id {
     // (e.g. 99abc, 9e+, are not a valid numbers.)
 
     bad_hex_number,
-    // The parser encountered a haxadecimal number containing invalid characters.
+    // The parser encountered a hexadecimal number containing invalid characters.
     // (e.g. 0x9X is not a valid number.)
 
     dict_key_is_not_string,
@@ -77,7 +77,7 @@ enum error_id {
 
     unescaped_control_character_in_string,
     // There is a character between U+0000 and U+001F inclusive or U+007F in the string token.
-    // These are not allowed. To include shuch a character use either the UTF-16 escape (\uXXXX)
+    // These are not allowed. To include such a character use either the UTF-16 escape (\uXXXX)
     // or other backslash escape sequences such as \n.
 
     unexpected_or_unknown_symbol,

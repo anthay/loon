@@ -858,7 +858,7 @@ void test()
     // Use some arbitrary Loon sample text to test our variant code.
     const char * loon_text = {
 
-        "; ### a self-explanitory loon sample file ###\n"
+        "; ### a self-explanatory loon sample file ###\n"
         "\n"
         "; - loon is a data serialisation file format based on S-expressions\n"
         "; - loon is designed to be easy for both people and machines to read\n"
