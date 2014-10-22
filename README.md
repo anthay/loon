@@ -1495,5 +1495,3 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 **loon-cpp** was made by Anthony Hay in 2014 in Wiltshire, England.  
 Contact <mailto:ant@logfilerobot.com>.
-
- 
