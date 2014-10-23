@@ -1083,8 +1083,8 @@ namespace tutorial_6 {
                 "entry2" "some value 1.2"
             )
             "section2" (dict
-                "entry1" "some value 1.1"
-                "entry2" "some value 1.2"
+                "entry1" "some value 2.1"
+                "entry2" "some value 2.2"
             )
         )
 

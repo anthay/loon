@@ -1,8 +1,7 @@
 # loon-cpp
+
 _Release 1.00_
 
-
-## README.md
 
 **Loon** is a data serialisation file format based on S-expressions.
 See <http://loonfile.info> for more information about the Loon file format.
@@ -1044,8 +1043,8 @@ We could model this in Loon like this
         "entry2" "some value 1.2"
     )
     "section2" (dict
-        "entry1" "some value 1.1"
-        "entry2" "some value 1.2"
+        "entry1" "some value 2.1"
+        "entry2" "some value 2.2"
     )
 )
 ~~~
