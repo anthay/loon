@@ -46,16 +46,16 @@ enum error_id {
 
     bad_number                              = 100,
     // The parser encountered a number containing invalid characters.
-    // (e.g. 99abc, 9e+, are not a valid numbers.)
+    // For example, '99abc', '9e+', are not a valid numbers.
 
     bad_hex_number                          = 101,
     // The parser encountered a hexadecimal number containing invalid characters.
-    // (e.g. 0x9X is not a valid number.)
+    // For example, '0x9X' is not a valid number.
 
     dict_key_is_not_string                  = 102,
     // The parser encountered a dict key that was not a string. A dict is a list of
     // zero or more key/value pairs where the value may be any object but the key must
-    // be a string. For example, (dict "key" 123) is valid but (dict true 123) is not.
+    // be a string. For example, (dict "123" 456) is valid but (dict 123 456) is not.
 
     incomplete_hex_number                   = 103,
     // A number that started '0x' was not followed by at least one valid hexadecimal digit. (0-9a-fA-F)
