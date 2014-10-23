@@ -1432,67 +1432,67 @@ The exception ids and their symbolic names are
 
 ~~~cpp
 enum error_id {
-    no_error = 0,
+    no_error                                = 0,
     // no exception will be thrown with this id
 
-    bad_number = 100,
+    bad_number                              = 100,
     // The parser encountered a number containing invalid characters.
     // (e.g. 99abc, 9e+, are not a valid numbers.)
 
-    bad_hex_number,
+    bad_hex_number                          = 101,
     // The parser encountered a hexadecimal number containing invalid characters.
     // (e.g. 0x9X is not a valid number.)
 
-    dict_key_is_not_string,
+    dict_key_is_not_string                  = 102,
     // The parser encountered a dict key that was not a string. A dict is a list of
     // zero or more key/value pairs where the value may be any object but the key must
-    // be a string. For example, (dict "123" 456) is valid but (dict 123 456) is not.
+    // be a string. For example, (dict "key" 123) is valid but (dict true 123) is not.
 
-    incomplete_hex_number,
+    incomplete_hex_number                   = 103,
     // A number that started '0x' was not followed by at least one valid hexadecimal digit. (0-9a-fA-F)
 
-    missing_arry_or_dict_symbol,
+    missing_arry_or_dict_symbol             = 104,
     // Something other than 'arry' or 'dict' was found immediately after an open bracket.
 
-    missing_dict_value,
+    missing_dict_value                      = 105,
     // The dict has a key with no associated value. For example, (dict "key").
 
-    unbalanced_close_bracket,
+    unbalanced_close_bracket                = 106,
     // The parser encountered a close bracket for which there was no corresponding open bracket.
 
-    unclosed_list,
+    unclosed_list                           = 107,
     // The input text ended while there is at least one list that has not been closed. E.g. "(arry 1 2 3".
 
-    unclosed_string,
+    unclosed_string                         = 108,
     // The input text ended before the closing double quote in the string token.
 
-    unescaped_control_character_in_string,
+    unescaped_control_character_in_string   = 109,
     // There is a character between U+0000 and U+001F inclusive or U+007F in the string token.
     // These are not allowed. To include such a character use either the UTF-16 escape (\uXXXX)
     // or other backslash escape sequences such as \n.
 
-    unexpected_or_unknown_symbol,
+    unexpected_or_unknown_symbol            = 110,
     // The parser encountered a symbol it did not expect or did not recognise.
     // For example, "(arry arry)" - the second arry is unexpected.
     // For example, "(arry cake)" - cake is unknown.
 
-    string_escape_incomplete,
+    string_escape_incomplete                = 111,
     // The string ended before the backslash escape sequence was completed.
 
-    string_escape_unknown,
+    string_escape_unknown                   = 112,
     // Within a string the backslash escape was not followed by one of these characters:
     // {\} {"} {/} {b} {f} {n} {r} {t} {u}.
 
-    bad_utf16_string_escape,
+    bad_utf16_string_escape                 = 113,
     // Within a string the backslash {u} escape was not followed by four hexadecimal digits (e.g. \u12AB).
 
-    bad_or_missing_utf16_surrogate_trail,
+    bad_or_missing_utf16_surrogate_trail    = 114,
     // Within a string a backslash {u} UTF-16 escape sequence was encountered that is
     // a UTF-16 surrogate lead value, but this was not followed by a valid UTF-16 surrogate
     // trail value. (A surrogate lead is in the range \uD800...\uDBFF, a surrogate trail is
     // in the range \uDC00...\uDFFF.)
 
-    orphan_utf16_surrogate_trail,
+    orphan_utf16_surrogate_trail            = 115,
     // Within a string a backslash {u} UTF-16 escape sequence was encountered that is
     // a UTF-16 surrogate trail value, but this was not preceded by a valid UTF-16 surrogate
     // lead value. (A surrogate lead is in the range \uD800...\uDBFF, a surrogate trail is
@@ -1500,8 +1500,8 @@ enum error_id {
 
 
     // the following should never occur... the code is broken... please report to author...
-    internal_error_unknown_state        = 0xBADC0DE1,
-    internal_error_inconsistent_state   = 0xBADC0DE2,
+    internal_error_unknown_state            = 0xBADC0DE1,
+    internal_error_inconsistent_state       = 0xBADC0DE2,
 };
 ~~~
 
