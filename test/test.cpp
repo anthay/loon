@@ -114,6 +114,7 @@ std::string serialise(const std::vector<std::string> & v)
     struct vec_writer : public loon::writer::base {
         std::string str;
 
+    private:
         // When the code in loon::writer::base needs to output Loon text
         // it will call this function.
         virtual void write(const char * utf8, int len)
@@ -315,6 +316,7 @@ std::string serialise(const std::map<std::string, std::string> & m)
     struct map_writer : public loon::writer::base {
         std::string str;
 
+    private:
         virtual void write(const char * utf8, int len)
         {
             str += std::string(utf8, len);
@@ -607,6 +609,7 @@ namespace tutorial_5 {
 struct variant_writer : public loon::writer::base {
     std::string str;
 
+private:
     virtual void write(const char * utf8, int len)
     {
         str += std::string(utf8, len);
@@ -1118,7 +1121,8 @@ std::string serialise(const section_map & ini)
 {
     struct ini_writer : public loon::writer::base {
         std::string str;
-        void write(const char * utf8, int len)
+    private:
+        virtual void write(const char * utf8, int len)
         {
             str += std::string(utf8, len);
         }
