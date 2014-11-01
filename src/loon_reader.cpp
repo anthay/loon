@@ -147,31 +147,29 @@ std::string throw_msg(error_id id, int line)
     return msg;
 }
 
-std::string throw_msg(error_id id, int line, const std::vector<uint8_t> & value)
+std::string throw_msg(error_id id, int line, const std::vector<uint8_t> & v)
 {
     std::string msg(throw_msg(id, line));
-    if (!value.empty())
-        msg += " Near '" + std::string(&value[0], &value[0] + value.size()) + "'.";
+    if (!v.empty())
+        msg += " Near '" + std::string(reinterpret_cast<const char *>(&v[0]), v.size()) + "'.";
     return msg;
 }
 
-// return a usable const char pointer to the given 's'
-inline const char * c_str(const std::vector<uint8_t> & s)
+// return a usable const char pointer to the given 's', even when 's'
+// is empty (but result will NOT be null-terminated)
+inline const char * char_ptr(const std::vector<uint8_t> & s)
 {
     return s.empty() ? "" : reinterpret_cast<const char *>(&s[0]);
 }
 
-// return a vector containing the chars in the given null-terminated 's'
-inline const std::vector<uint8_t> to_vector(const char * s)
+// return true iff 'a' matches 'b' exactly (excluding 'b's null-terminator)
+inline bool operator==(const std::vector<uint8_t> & a, const char * b)
 {
-    return std::vector<uint8_t>(s, s + strlen(s));
+    size_t i = 0;
+    while (i < a.size() && b[i] && a[i] == static_cast<uint8_t>(b[i]))
+        ++i;
+    return i == a.size() && b[i] == 0;
 }
-
-const std::vector<uint8_t> symname_arry(to_vector("arry"));
-const std::vector<uint8_t> symname_dict(to_vector("dict"));
-const std::vector<uint8_t> symname_false(to_vector("false"));
-const std::vector<uint8_t> symname_null(to_vector("null"));
-const std::vector<uint8_t> symname_true(to_vector("true"));
 
 // return true iff given 'n' is first of UTF-16 surrogate pair (0xD800 <= n <= 0xDBFF)
 inline bool utf16_is_surrogate_lead(uint32_t n)
@@ -185,7 +183,7 @@ inline bool utf16_is_surrogate_trail(uint32_t n)
     return (n & 0xFFFFFC00) == 0x0000DC00;
 }
 
- // return the UTF-32 
+// return the UTF-32 code point for the given UTF-16 surrogate pair
 inline uint32_t utf16_combine_surrogate_pair(uint32_t lead, uint32_t trail)
 {
     return 0x00010000 + ((lead & 0x000003FF) << 10) + (trail & 0x000003FF);
@@ -212,11 +210,16 @@ inline bool is_ctrl(uint8_t ch)
 inline bool is_whitespace(uint8_t ch)
 {
     return ch == ' ' || is_ctrl(ch);
+    // this must hold: is_newline(ch) => is_whitespace(ch)
 }
 
 inline bool is_newline(uint8_t ch)
 {
-    return ch == '\n' || ch == '\r';
+    return ch == '\x0A'     // LF
+        || ch == '\x0B'     // VT
+        || ch == '\x0C'     // FF
+        || ch == '\x0D';    // CR
+    // Loon does not recognise NEL (U+0085), LS (U+2028) or PS (U+2029)
 }
 
 bool non_symbol(uint8_t ch)
@@ -385,14 +388,14 @@ void lexer::atom_number(const std::vector<uint8_t> &, num_type) {}
     to signal the event to the derrived class.
 
     The Loon grammar can be parsed with just one character look-ahead. But
-    we can't look ahaed at all - we just have to process the bytes as they
+    we can't look ahead at all - we just have to process the bytes as they
     are given to us. For example, say we are in the middle of parsing a number
     and process() is given a non-number character. At this point we can emit
     the number we have accumulated and change to the start state. We then need
     to process the non-number character we were given in the context of the
     start state. There are (at least?) three ways I could have implemented
     this: recurse (good), loop/goto (bad) or repeat the start-state code (ugly).
-    I chose to recurse, i.e. process() calls itself with the non-number
+    I chose to recurse - i.e. process() calls itself with the non-number
     character. Note that the recursion will only ever be one level deep.
 */
 
@@ -482,7 +485,7 @@ void lexer::process(uint8_t ch)
         break;
 
     case in_coment:
-        if (is_newline(ch)) // {CR} or {LF} => start
+        if (is_newline(ch)) // {CR}, {LF}, {VT} or {FF} => start
             state_ = start;
         // else remain in in_coment state
         break;
@@ -646,16 +649,19 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
 
     // loop once for every byte in [utf8, utf8 + len)
     for (; p != end; ++p) {
-        if (*p == '\r') {
-            // {CR} => newline
+        // update line counter if this is a newline
+        if (*p == '\x0D') { // {CR} => newline
             ++current_line_;
             cr_ = true;
         }
         else {
-            // {LF} => {newline} (don't count {LF} if preceeded by {CR}
-            // because we already counted it when we saw the {CR})
-            if (*p == '\n' && !cr_)
+            if (*p == '\x0B' || *p == '\x0C') // {VT} or {FF} => newline
                 ++current_line_;
+            else if (*p == '\x0A' && !cr_) {
+                // {LF} => {newline} (don't count {LF} if preceeded by {CR}
+                // because we already counted it when we saw the {CR})
+                ++current_line_;
+            }
             cr_ = false;
         }
 
@@ -716,13 +722,21 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
                 // {\} {LF} => {line splice}
                 pp_state_ = pp_start;
             }
+            else if (*p == '\v') {
+                // {\} {VT} => {line splice}
+                pp_state_ = pp_start;
+            }
+            else if (*p == '\f') {
+                // {\} {FF} => {line splice}
+                pp_state_ = pp_start;
+            }
             else if (*p == '\\') {
                 // {\} {\} => {\} {unknown until we see next character}
                 process('\\'); // process previous \ escape
                 // remain in pp_escape state
             }
             else {
-                // {\} {X: any char except CR, LF and \} => {\} {X}
+                // {\} {X: any char except CR, LF, VT, FF and \} => {\} {X}
                 process('\\');
                 process(*p);
                 pp_state_ = pp_start;
@@ -915,11 +929,11 @@ void base::atom_symbol(const std::vector<uint8_t> & value)
     toggle_dict_state();
 
     if (at_list_start_) {
-        if (value == symname_arry) {
+        if (value == "arry") {
             list_state_.push_back(arry_allow_value);
             loon_arry_begin();
         }
-        else if (value == symname_dict) {
+        else if (value == "dict") {
             list_state_.push_back(dict_allow_key);
             loon_dict_begin();
         }
@@ -929,11 +943,11 @@ void base::atom_symbol(const std::vector<uint8_t> & value)
         at_list_start_ = false;
     }
     else {
-        if (value == symname_true)
+        if (value == "true")
             loon_bool(true);
-        else if (value == symname_false)
+        else if (value == "false")
             loon_bool(false);
-        else if (value == symname_null)
+        else if (value == "null")
             loon_null();
         else
             throw exception(unexpected_or_unknown_symbol, current_line_,
@@ -948,14 +962,14 @@ void base::atom_string(const std::vector<uint8_t> & value)
             throw_msg(missing_arry_or_dict_symbol, current_line_, value).c_str());
 
     if (list_state_.empty())
-        loon_string(c_str(value), value.size());
+        loon_string(char_ptr(value), value.size());
     else {
         if (list_state_.back() == dict_allow_key) {
-            loon_dict_key(c_str(value), value.size());
+            loon_dict_key(char_ptr(value), value.size());
             list_state_.back() = dict_require_value;
         }
         else {
-            loon_string(c_str(value), value.size());
+            loon_string(char_ptr(value), value.size());
             if (list_state_.back() == dict_require_value)
                 list_state_.back() = dict_allow_key;
         }
@@ -969,7 +983,7 @@ void base::atom_number(const std::vector<uint8_t> & value, num_type ntype)
             throw_msg(missing_arry_or_dict_symbol, current_line_, value).c_str());
 
     toggle_dict_state();
-    loon_number(c_str(value), value.size(), ntype);
+    loon_number(char_ptr(value), value.size(), ntype);
 }
 
 void base::reset()

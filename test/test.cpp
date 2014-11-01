@@ -1317,7 +1317,7 @@ namespace unit_test {
 using tutorial_5::variant_reader;
 using tutorial_5::serialise;
 
-// return given 's' with {\} {LF}, {\} {CR} and {\} {CR} {LF} line splice
+// return given 's' with {\}{LF}, {\}{CR}, {\}{VT}, {\}{FF} and {\}{CR}{LF} line splice
 // sequences inserted before each and every byte
 std::string insert_line_continuations(const std::string & s)
 {
@@ -1325,6 +1325,8 @@ std::string insert_line_continuations(const std::string & s)
     for (size_t i = 0; i < s.size(); ++i) {
         result += "\\\n";
         result += "\\\r";
+        result += "\\\v";
+        result += "\\\f";
         result += "\\\r\n";
         result += s[i];
     }
@@ -1383,7 +1385,7 @@ void test(const std::string & loon_text, const var & expected)
     // do it all again but this time preceeded by a UTF-8 BOM
     test2("\xEF\xBB\xBF" + loon_text, expected);
 
-    // and again with line continuations between every single byte
+    // and again with line continuations between every. single. byte.
     test2(insert_line_continuations(loon_text), expected);
 
     // and again with multiple line continuations and a BOM
@@ -1481,6 +1483,11 @@ void test_simple_valid_loon()
             ";comment\r\n(arry);another\n",
             "(arry);\\",
             "(arry);false",
+            ";comment\x0A(arry)",           // LF is a valid line ending
+            ";comment\x0B(arry)",           // VT is a valid line ending
+            ";comment\x0C(arry)",           // FF is a valid line ending
+            ";comment\x0D(arry)",           // CR is a valid line ending
+            ";comment\x0D\x0A(arry)",       // CR+LF is a valid line ending
             0
         };
         run_tests(tests, var::make_arry());
@@ -1874,6 +1881,8 @@ void test_syntax_errors()
         {"0xAX",                        1,  bad_hex_number},
         {"()",                          1,  missing_arry_or_dict_symbol},
         {"(999)",                       1,  missing_arry_or_dict_symbol},
+        {"(arrys)",                     1,  missing_arry_or_dict_symbol},
+        {"(arr)",                       1,  missing_arry_or_dict_symbol},
         {"(\"abc\")",                   1,  missing_arry_or_dict_symbol},
         {"((arry))",                    1,  missing_arry_or_dict_symbol},
         {"\n(cake)",                    2,  missing_arry_or_dict_symbol},

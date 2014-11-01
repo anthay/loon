@@ -28,7 +28,7 @@
 
 #include "loon_writer.h"
 
-#include <cmath>
+#include <climits>
 #include <sstream>
 
 
@@ -46,8 +46,9 @@ namespace {
 ////////  ///////   //////  //     // //////// 
 
 
-// return a usable const char pointer to the given 's'
-inline const char * c_str(const std::vector<uint8_t> & s)
+// return a usable const char pointer to the given 's', even when 's'
+// is empty (but result will NOT be null-terminated)
+inline const char * char_ptr(const std::vector<uint8_t> & s)
 {
     return s.empty() ? "" : reinterpret_cast<const char *>(&s[0]);
 }
@@ -258,7 +259,7 @@ void base::loon_dict_key(const std::string & value)
 {
     write_indent(space_required);
     escape(buf_, value);
-    write(c_str(buf_), buf_.size());
+    write(char_ptr(buf_), buf_.size());
     empty_list_ = false;
     suppress_indent_ = true; // place value on same line as key
 }
@@ -319,7 +320,7 @@ void base::loon_double(double n)
 void base::loon_string(const std::string & value)
 {
     escape(buf_, value);
-    loon_preformatted_value(c_str(buf_), buf_.size());
+    loon_preformatted_value(char_ptr(buf_), buf_.size());
 }
 
 base::base()

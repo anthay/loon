@@ -1,6 +1,6 @@
 # loon-cpp
 
-_Release 1.00_
+_Release 1.01_
 
 
 **Loon** is a data serialisation file format based on S-expressions.
@@ -176,10 +176,10 @@ clang++ -std=c++11 -stdlib=libc++ -Wall -I../../src -c ../../src/loon_reader.cpp
 clang++ -std=c++11 -stdlib=libc++ -Wall -I../../src -c ../../src/loon_writer.cpp -o loon_writer.o
 clang++ -std=c++11 -stdlib=libc++ -Wall test.o var.o loon_reader.o loon_writer.o -o loontest
 ./loontest
-tests executed 1966, tests failed 0
+tests executed 2012, tests failed 0
 $
-$clang -v
-Apple LLVM version 4.2 (clang-425.0.27) (based on LLVM 3.2svn)
+$clang++ -v
+Apple LLVM version 6.0 (clang-600.0.54) (based on LLVM 3.5svn)
 Target: x86_64-apple-darwin13.4.0
 Thread model: posix
 $
@@ -215,13 +215,13 @@ Debug
 test.vcxproj
 
 C:\loon-cpp\build\msvc2010>debug\test
-tests executed 1966, tests failed 0
+tests executed 2012, tests failed 0
 
 C:\loon-cpp\build\msvc2010>
 ~~~
 
-You can of course just double-click the `test.vcxproj` file and open the
-project in the Visual Studio IDE.
+If you have the MSVC IDE tou can also just double-click the `test.vcxproj`
+file and open the project in the Visual Studio IDE.
 
 
 
@@ -1509,12 +1509,14 @@ enum error_id {
 
 ## 5. RELEASE NOTES
 
-### loon-cpp release 1.00
+### Release 1.01
 
-#### Known bugs
+- Added support for VT and FF line endings.
 
-There are no known bugs in this release. That doesn't mean there
-aren't any and if you find one please let the author know.
+### Release 1.00
+
+- There are no known bugs in this release. That doesn't mean there
+  aren't any and if you find one please let the author know.
 
 
 
