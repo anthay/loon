@@ -30,6 +30,7 @@
 
 #include <cstdint>
 #include <cassert>
+#include <cstdio>
 
 
 namespace loon {
@@ -45,21 +46,17 @@ namespace {
 //       //     // //    // //     // //       
 ////////  ///////   //////  //     // //////// 
 
-#if defined(_MSC_VER) && _MSC_VER < 1700
-inline std::string to_string(int n)
-{
-    // MSVC 2010 was pre-C++2011 - they had to_string(),
-    // but not an overload that takes an int
-    return std::to_string(static_cast<long long>(n));
-}
-#else
-inline std::string to_string(int n)
-{
-    return std::to_string(n);
-}
-#endif
 
+// return given 'n' as string
+std::string to_string(int n)
+{
+    char buf[40];
+    sprintf(buf, "%d", n);
+    return buf;
+}
 
+// return an exception message describing the given error 'id'; the message
+// will be in the form "Syntax error R<id> on line <line>: <description>"
 std::string throw_msg(error_id id, int line)
 {
     std::string msg("Syntax error R"); // (R for reader, in case we ever have writer exceptions)
@@ -147,6 +144,7 @@ std::string throw_msg(error_id id, int line)
     return msg;
 }
 
+// as for throw_msg() above but with "Near '<v>'" appended
 std::string throw_msg(error_id id, int line, const std::vector<uint8_t> & v)
 {
     std::string msg(throw_msg(id, line));
