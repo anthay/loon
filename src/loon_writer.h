@@ -68,7 +68,7 @@ public:
     void loon_dec_u32(uint32_t n);
     // Output a Loon format decimal integer.
     void loon_dec_s32(int32_t n);
-    // Output a Loon format decimal integer.
+    // Output a Loon format hexadecimal integer.
     void loon_hex_u32(uint32_t n);
 
     // Output a Loon format decimal fraction.
