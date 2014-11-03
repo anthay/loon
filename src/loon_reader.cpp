@@ -50,7 +50,7 @@ namespace {
 // return given 'n' as string
 std::string to_string(int n)
 {
-    char buf[40];
+    char buf[41]; // big enough for -(2^127) + null terminator
     sprintf(buf, "%d", n);
     return buf;
 }
