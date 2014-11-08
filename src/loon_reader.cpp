@@ -163,10 +163,12 @@ inline const char * char_ptr(const std::vector<uint8_t> & s)
 // return true iff 'a' matches 'b' exactly (excluding 'b's null-terminator)
 inline bool operator==(const std::vector<uint8_t> & a, const char * b)
 {
-    size_t i = 0;
-    while (i < a.size() && b[i] && a[i] == static_cast<uint8_t>(b[i]))
-        ++i;
-    return i == a.size() && b[i] == 0;
+    for (size_t i = 0; ; ++i) {
+        if (i == a.size())
+            return b[i] == 0;
+        if (b[i] == 0 || a[i] != static_cast<uint8_t>(b[i]))
+            return false;
+    }
 }
 
 // return true iff given 'n' is first of UTF-16 surrogate pair (0xD800 <= n <= 0xDBFF)
