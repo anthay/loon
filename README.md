@@ -100,6 +100,9 @@ introduction to Loon taken from that site:
   source. These four files constitute the loon-cpp library. All other files in
   the distribution are part of the documentation or unit test suite and do not
   need to be included in your build.
+  
+- The reader and writer use only the standard C++ library; there are no
+  dependencies on any other libraries or third-party code.
 
 - To create a reader you derive a class from `loon::reader::base`. Your class
   must override the `base::loon_XXXX` virtual functions. You feed the Loon text
