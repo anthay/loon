@@ -59,7 +59,7 @@ std::string to_string(int n)
 // will be in the form "Syntax error R<id> on line <line>: <description>"
 std::string throw_msg(error_id id, int line)
 {
-    std::string msg("Syntax error R"); // (R for reader, in case we ever have writer exceptions)
+    std::string msg("Syntax error LOON");
     msg += to_string(id);
     msg += " on line ";
     msg += to_string(line);

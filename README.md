@@ -636,7 +636,7 @@ std::map<std::string, std::string> unserialise(const std::string & s)
         virtual void loon_string(const char * utf8, size_t len)
         {
             // Now we have the key/value pair we can record them in our map.
-            map_[key_] = std::string(utf8, utf8 + len);
+            map_[key_] = std::string(utf8, len);
         }
 
         // 9. We'll get a loon_dict_end event when the ")" token is parsed.

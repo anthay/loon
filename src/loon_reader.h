@@ -46,7 +46,7 @@ enum error_id {
 
     bad_number                              = 100,
     // The parser encountered a number containing invalid characters.
-    // For example, '99abc', '9e+', are not a valid numbers.
+    // For example, '99abc', '9e+', are not valid numbers.
 
     bad_hex_number                          = 101,
     // The parser encountered a hexadecimal number containing invalid characters.
