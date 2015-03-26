@@ -1291,21 +1291,21 @@ void loon_dict_key(const std::string & key_name);
 
 // Output the Loon value null.
 void loon_null();
-// Output the Loon value true or false.
+// Output the given Boolean value in Loon Boolean format.
 void loon_bool(bool value);
-// Output a Loon format decimal integer.
+// Output the unsigned integer n in Loon decimal format.
 void loon_dec_u32(uint32_t n);
-// Output a Loon format decimal integer.
+// Output the signed integer n in Loon decimal format.
 void loon_dec_s32(int32_t n);
-// Output a Loon format hexadecimal integer.
+// Output the unsigned integer n in Loon hexadecimal format.
 void loon_hex_u32(uint32_t n);
 
-// Output a Loon format decimal fraction.
-// Note: Loon does not support numeric values that cannot be represented
-// as a sequence of digits (such as Infinity and NaN).
+// Output the given double n in Loon double format.
+// Note: n must be a numeric value that may be represented as a sequence
+// of digits; Loon does not support other values (such as Infinity and NaN).
 void loon_double(double n);
 
-// Output a Loon format string. The given value must be UTF-8 encoded.
+// Output the given UTF-8 encoded value as a Loon format string.
 // The writer will automatically escape control characters and {\} and {"}.
 void loon_string(const std::string & value);
 
