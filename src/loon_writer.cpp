@@ -215,7 +215,7 @@ void base::write_indent(unsigned flags)
 
 
 // the must be overridden by user to collect writer output
-void base::write(const char *, int) {}
+void base::write(const char *, size_t) {}
 
 
 void base::loon_arry_begin()
@@ -263,7 +263,7 @@ void base::loon_dict_key(const std::string & value)
     suppress_indent_ = true; // place value on same line as key
 }
 
-void base::loon_preformatted_value(const char * utf8, int len)
+void base::loon_preformatted_value(const char * utf8, size_t len)
 {
     write_indent(space_required);
     write(utf8, len);

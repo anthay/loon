@@ -49,7 +49,7 @@ public:
 
     // The output of this class is written through this function.
     // You must override it to collect the Loon text produced.
-    virtual void write(const char * utf8, int len) = 0;
+    virtual void write(const char * utf8, size_t len) = 0;
 
     // Call this function to open a Loon arry.
     void loon_arry_begin();
@@ -89,7 +89,7 @@ public:
     // Normally you would use one of the above Loon value functions
     // rather than this one. If you use this one it is your responsibility
     // to ensure that the value is in valid Loon format.
-    void loon_preformatted_value(const char * utf8, int len);
+    void loon_preformatted_value(const char * utf8, size_t len);
 
     // Turn "pretty" (indented) printing on or off.
     bool set_pretty(bool on) { std::swap(pretty_, on); return on; }
