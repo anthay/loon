@@ -161,8 +161,8 @@ protected:
 private:
     enum { pp_bom_test, pp_in_bom_1, pp_in_bom_2, pp_start, pp_escape, pp_ignore_lf } pp_state_;
     enum { start, in_symbol, in_string, in_string_escape, in_coment,
-        num_second_digit, num_sign, num_digits, num_hex, num_exp_start,
-        num_frac_digits, num_exp_start_digits, num_exp } state_;
+        num_second_digit, num_sign, num_leading_dot, num_digits, num_hex,
+        num_exp_start, num_frac_digits, num_exp_start_digits, num_exp } state_;
     bool cr_;
     int nest_level_;
     std::vector<uint8_t> value_;

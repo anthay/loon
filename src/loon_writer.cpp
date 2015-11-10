@@ -148,7 +148,6 @@ char * unsigned_to_hexadecimal(char * p, scalar_type n)
         *--p = hexchar(n & 0xF);
         n >>= 4;
     }
-    while (n);
     *--p = 'x';
     *--p = '0';
     return p;
@@ -323,9 +322,20 @@ void base::loon_string(const std::string & value)
     loon_preformatted_value(char_ptr(buf_), buf_.size());
 }
 
-base::base()
-: newline_("\n"), need_newline_(false), pretty_(true), empty_list_(false), suppress_indent_(false), indent_(0), spaces_per_indent_(4)
+void base::reset()
 {
+    newline_ = "\n";
+    need_newline_ = false;
+    pretty_ = true;
+    empty_list_ = false;
+    suppress_indent_ = false;
+    indent_ = 0;
+    spaces_per_indent_ = 4;
+}
+
+base::base()
+{
+    reset();
 }
 
 base::~base()

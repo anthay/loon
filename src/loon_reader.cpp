@@ -59,7 +59,7 @@ std::string to_string(int n)
 // will be in the form "Syntax error R<id> on line <line>: <description>"
 std::string throw_msg(error_id id, int line)
 {
-    std::string msg("Syntax error LOON");
+    std::string msg("Syntax error Loon");
     msg += to_string(id);
     msg += " on line ";
     msg += to_string(line);
@@ -396,7 +396,7 @@ void lexer::atom_number(const std::vector<uint8_t> &, num_type) {}
     start state. There are (at least?) three ways I could have implemented
     this: recurse (good), loop/goto (bad) or repeat the start-state code (ugly).
     I chose to recurse - i.e. process() calls itself with the non-number
-    character. Note that the recursion will only ever be one level deep.
+    character. Note that the recursion will never exceed two levels.
 */
 
 void lexer::process(uint8_t ch)
@@ -436,6 +436,11 @@ void lexer::process(uint8_t ch)
             value_.clear();
             value_.push_back(ch);
             state_ = num_sign;
+        }
+        else if (ch == '.') { // {.} => start of number (possibly)
+            value_.clear();
+            value_.push_back(ch);
+            state_ = num_leading_dot;
         }
         else { // must be in symbol
             value_.clear();
@@ -495,8 +500,24 @@ void lexer::process(uint8_t ch)
             value_.push_back(ch);
             state_ = num_digits;
         }
-        else { // {+-} {ch: any character that isn't 0-9} => this was never a number
+        else if (ch == '.') { // {+-} {.} => start of number (possibly)
+            value_.push_back(ch);
+            state_ = num_leading_dot;
+        }
+        else { // {+-} {ch: any character that isn't 0-9 or .} => this was never a number
             // value_[0] is either '+' or '-' and is the start of a symbol
+            state_ = in_symbol;
+            process(ch);
+        }
+        break;
+
+    case num_leading_dot:
+        if (is_digit(ch)) { // [{+-}] {.} {0-9} => start of float fractional part
+            value_.push_back(ch);
+            state_ = num_frac_digits;
+        }
+        else { // [{+-}] {.} {ch: any character that isn't 0-9} => this was never a number
+            // value_[0] is either '+', '-' or '.' and is the start of a symbol
             state_ = in_symbol;
             process(ch);
         }
@@ -515,7 +536,7 @@ void lexer::process(uint8_t ch)
             }
         }
         state_ = num_digits;
-        // ch is unprocessed; fall through to num_digits
+        // ch is unprocessed; FALL THROUGH to num_digits
 
     case num_digits:
         if (ch == 'e' || ch == 'E') { // {0-9} {eE} => start of float exponent
@@ -800,6 +821,7 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
             break;
 
         case num_sign:
+        case num_leading_dot:
         case in_symbol:
             atom_symbol(value_);
             break;

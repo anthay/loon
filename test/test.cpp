@@ -121,7 +121,7 @@ std::string serialise(const std::vector<std::string> & v)
         {
             // You could write the text to a file or whatever you want.
             // Here we just append it to a string.
-            str += std::string(utf8, len);
+            str.append(utf8, len);
         }
     };
 
@@ -319,7 +319,7 @@ std::string serialise(const std::map<std::string, std::string> & m)
     private:
         virtual void write(const char * utf8, int len)
         {
-            str += std::string(utf8, len);
+            str.append(utf8, len);
         }
     };
 
@@ -612,7 +612,7 @@ struct variant_writer : public loon::writer::base {
 private:
     virtual void write(const char * utf8, int len)
     {
-        str += std::string(utf8, len);
+        str.append(utf8, len);
     }
 };
 
@@ -1124,7 +1124,7 @@ std::string serialise(const section_map & ini)
     private:
         virtual void write(const char * utf8, int len)
         {
-            str += std::string(utf8, len);
+            str.append(utf8, len);
         }
     };
 
@@ -1559,12 +1559,17 @@ void test_numbers()
     test("0XABCDEF;12", var(0xABCDEF));
 
     test("0.",          var(0.0));
+    test(".0",          var(0.0));
     test("0.1",         var(0.1));
+    test(".1",          var(0.1));
+    test("+.1",         var(0.1));
+    test("-.1",         var(-0.1));
     test("0.1e0",       var(0.1));
     test("1e-1",        var(0.1));
     test("1e+1",        var(10.0));
     test("-99.9",       var(-99.9));
     test("0.;",         var(0.0));
+    test(".0;",         var(0.0));
 
     test(var(0.0),              "0.0");
     test(var(0.1),              "0.1");
@@ -1608,6 +1613,17 @@ void test_numbers()
             TEST_EQUAL(num_, num);
         }
 
+        void test_number_catch(const std::string & num)
+        {
+            try {
+                test_number(num);
+            }
+            catch (const std::exception & e) {
+                std::cout << "Testing number '" << num << "' gave exception: " << e.what() << "\n";
+                TEST_FAILED();
+            }
+        }
+
     private:
         std::string num_;
 
@@ -1638,6 +1654,9 @@ void test_numbers()
         "9.",
         "99.",
         "999.",
+        ".9",
+        ".99",
+        ".999",
         "9.9",
         "99.9",
         "999.9",
@@ -1651,6 +1670,9 @@ void test_numbers()
         "9.e99",
         "99.e99",
         "999.e99",
+        ".9e99",
+        ".99e99",
+        ".999e99",
         "9.9e9",
         "99.9e9",
         "999.9e9",
@@ -1681,6 +1703,9 @@ void test_numbers()
         "9.E99",
         "99.E99",
         "999.E99",
+        ".9E99",
+        ".99E99",
+        ".999E99",
         "9.9E9",
         "99.9E9",
         "999.9E9",
@@ -1729,15 +1754,15 @@ void test_numbers()
 
         0
     };
-    
+
     const std::string plus("+");
     const std::string minus("-");
 
     number_reader reader;
     for (const char * const * p = valid_decimal; *p; ++p) {
-        reader.test_number(*p);
-        reader.test_number(plus + *p);
-        reader.test_number(minus + *p);
+        reader.test_number_catch(*p);
+        reader.test_number_catch(plus + *p);
+        reader.test_number_catch(minus + *p);
     }
 
     const char * const valid_hex[] = {
@@ -1798,7 +1823,6 @@ void test_numbers()
         "9.9e",
         "9.9e+",
         "9.9e-",
-        ".9",
         "1.2.3",
         "1.-2",
         "9.9e9e",
@@ -1809,7 +1833,21 @@ void test_numbers()
         "9A",
         "9+",
         "+",
+        "+ ",
+        "+.",
+        "+. ",
+        ".+",
+        ".+ ",
         "-",
+        "- ",
+        "-.",
+        "-. ",
+        ".-",
+        ".- ",
+        ".",
+        ". ",
+        "..",
+        ".. ",
 
         0
     };
@@ -1821,6 +1859,34 @@ void test_numbers()
 }
 
 
+void test_write_loon_hex_u32()
+{
+    struct writer : public loon::writer::base {
+        std::string write_as_hex_u32(uint32_t n)
+        {
+            reset();
+            str.clear();
+            loon_hex_u32(n);
+            return str;
+        }
+
+    private:
+        std::string str;
+        virtual void write(const char * utf8, int len)
+        {
+            str.append(utf8, len);
+        }
+    };
+
+    writer w;
+    TEST_EQUAL(w.write_as_hex_u32(0         ), "0x00000000");
+    TEST_EQUAL(w.write_as_hex_u32(1         ), "0x00000001");
+    TEST_EQUAL(w.write_as_hex_u32(0xABCDEF  ), "0x00ABCDEF");
+    TEST_EQUAL(w.write_as_hex_u32(0x12345678), "0x12345678");
+    TEST_EQUAL(w.write_as_hex_u32(0x87654321), "0x87654321");
+    TEST_EQUAL(w.write_as_hex_u32(0xABCDEF00), "0xABCDEF00");
+    TEST_EQUAL(w.write_as_hex_u32(0xFFFFFFFF), "0xFFFFFFFF");
+}
 
 
 void expect_exception(
@@ -2085,6 +2151,7 @@ void test()
     test_simple_valid_loon();
     test_strings();
     test_numbers();
+    test_write_loon_hex_u32();
     test_syntax_errors();
     test_reset();
     soaktest();

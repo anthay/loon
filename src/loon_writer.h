@@ -31,6 +31,7 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <cstdint>
 
 
@@ -42,6 +43,9 @@ class base {
 public:
     base();
     virtual ~base();
+
+    // Reset the writer to it's initial pristine state.
+    virtual void reset();
 
     // The output of this class is written through this function.
     // You must override it to collect the Loon text produced.
@@ -88,14 +92,17 @@ public:
     void loon_preformatted_value(const char * utf8, int len);
 
     // Turn "pretty" (indented) printing on or off.
-    void set_pretty(bool on) { pretty_ = on; }
+    bool set_pretty(bool on) { std::swap(pretty_, on); return on; }
 
     // Set the number of spaces per indentation level. (Default is 4.)
-    void set_spaces_per_indent(int n) { spaces_per_indent_ = n; }
+    int set_spaces_per_indent(int n) { std::swap(spaces_per_indent_, n); return n; }
+
+    // Set the string to be used when the writer needs to output a newline.
+    std::string set_newline(std::string nl) { nl.swap(newline_); return nl; }
 
 private:
-    std::vector<uint8_t> buf_;
-    std::string newline_;
+    std::vector<uint8_t> buf_;  // scratch (is a member to minimise memory allocations)
+    std::string newline_;       // the string output to move to the next line
     bool need_newline_;
     bool pretty_;
     bool empty_list_;
