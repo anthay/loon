@@ -2146,6 +2146,99 @@ void soaktest()
 }
 
 
+// return a random number in the range (0, n]
+int random(int n)
+{
+    return rand() % n;
+}
+
+
+typedef void fubar_test_func(const char * mutated_text, size_t mutated_text_len);
+
+// repeatedly call given 'f' with progressively more mutated 'text'
+void fubar(fubar_test_func * f, const char * text)
+{
+    const size_t text_len = static_cast<size_t>(strlen(text));
+    if (text_len == 0)
+        return;
+    std::vector<char> buf(text_len);
+
+    const int num_restarts = 1000;  // restart from fresh text this number of times
+    const int num_mutations = 100;  // total mutations to perform after each restart
+
+    for (int j = 0; j < num_restarts; ++j) {
+        std::copy(text, text + text_len, &buf[0]);
+        for (int i = 0; i < num_mutations; ++i) {
+            buf[random(text_len)] = static_cast<char>(random(256));
+            f(&buf[0], text_len);
+        }
+    }
+}
+
+void parse(const char * text, size_t len)
+{
+    /*  Parse the given mutated text. The given text may or may not be
+        syntactically correct, depending on how it has been mutated.
+        The parse may succeed or it may fail with a Loon syntax exception.
+        But what matters is that it never fails with any other kind of
+        exception, and it never crashes! */
+
+    struct reader : private loon::reader::base  {
+        using base::process_chunk;
+    private:
+        virtual void loon_arry_begin() {}
+        virtual void loon_arry_end() {}
+        virtual void loon_dict_begin() {}
+        virtual void loon_dict_end() {}
+        virtual void loon_dict_key(const char *, size_t) {}
+        virtual void loon_null() {}
+        virtual void loon_bool(bool) {}
+        virtual void loon_number(const char *, size_t, loon::reader::num_type) {}
+        virtual void loon_string(const char *, size_t) {}
+    };
+
+    reader r;
+    try {
+        r.process_chunk(text, len, true);
+    }
+    catch (const loon::reader::exception & e) {
+        // not unexpectedly, some mutatations cause syntax errors
+        if (e.id() == loon::reader::internal_error_unknown_state
+            || e.id() == loon::reader::internal_error_inconsistent_state) {
+            // if this ever happens we'll want to dump out the text that caused it
+            std::cout << "loon::reader::exception: " << e.what() << "\n";
+            TEST_FAILED();
+        }
+        // else, assume the reported syntax error is correct and ignore it
+    }
+    catch (const std::exception & e) {
+        // if this ever happens we'll want to dump out the text that caused it
+        std::cout << "std::exception: " << e.what() << "\n";
+        TEST_FAILED();
+    }
+    catch (...) {
+        // if this ever happens we'll want to dump out the text that caused it
+        std::cout << "exception!\n";
+        TEST_FAILED();
+    }
+}
+
+// let's see if some primitive fuzz testing will reveal any bugs
+void fuzztest()
+{
+    fubar(parse, "true");
+    fubar(parse, "1.234");
+    fubar(parse, "0xABC123");
+    fubar(parse, "(arry 1 2 3 4)");
+    fubar(parse, "(dict \"key\" \"value\")");
+    fubar(parse, "(arry (arry 1 2 3 4) true false .999)");
+    fubar(parse, "\"The rain in Spain stays mainly in the plain.\"");
+    fubar(parse, "(dict \"k\" (dict \"k\" (dict \"k\" (dict \"k\" (dict)))))");
+    fubar(parse, "(arry(arry(arry(arry(arry(arry(arry(arry(arry(arry))))))))))");
+}
+
+
+
 void test()
 {
     test_simple_valid_loon();
@@ -2155,6 +2248,7 @@ void test()
     test_syntax_errors();
     test_reset();
     soaktest();
+    fuzztest();
 }
 
 }
