@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <cassert>
 #include <cstdio>
+#include <limits>
 
 
 namespace loon {
@@ -50,9 +51,28 @@ namespace {
 // return given 'n' as string
 std::string to_string(int n)
 {
-    char buf[41]; // big enough for -(2^127) + null terminator
-    sprintf(buf, "%d", n);
-    return buf;
+    static_assert(std::numeric_limits<unsigned int>::digits <= 64, "buf is too small");
+    char buf[20]; // -9223372036854775808 .. 9223372036854775807
+    char * const end = buf + sizeof(buf);
+    char * p = end;
+
+    if (n < 0) {
+        do {
+            *--p = '0' - n % 10;
+            n /= 10;
+        }
+        while (n);
+        *--p = '-';
+    }
+    else {
+        do {
+            *--p = '0' + n % 10;
+            n /= 10;
+        }
+        while (n);
+    }
+
+    return std::string(p, end);
 }
 
 // return an exception message describing the given error 'id'; the message
@@ -60,84 +80,96 @@ std::string to_string(int n)
 std::string throw_msg(error_id id, int line)
 {
     std::string msg("Syntax error Loon");
-    msg += to_string(id);
-    msg += " on line ";
-    msg += to_string(line);
-    msg += ": ";
+    msg.append(to_string(id));
+    msg.append(" on line ");
+    msg.append(to_string(line));
+    msg.append(": ");
 
     switch (id) {
     case bad_number:
-        msg +=  "Bad number."
-                " For example, it contains invalid characters (e.g. 99X) or is incomplete (e.g. 9e+).";
+        msg.append( "Bad number.\n"
+                    "The decimal number contains invalid characters (e.g. 99X)\n"
+                    "or is incomplete (e.g. 9e+).");
         break;
     case bad_hex_number:
-        msg +=  "Bad hexadecimal number."
-                " For example, it contains invalid characters (e.g. 0x99X).";
+        msg.append( "Bad hexadecimal number.\n"
+                    "The hexadecimal number contains invalid characters (e.g. 0x99X).");
         break;
     case dict_key_is_not_string:
-        msg +=  "dict key is not a string."
-                " For example, (dict \"123\" 456) is valid but (dict 123 456) is not.";
+        msg.append( "dict key is not a string.\n"
+                    "For example, (dict \"123\" 456) is valid but (dict 123 456) is not.");
         break;
     case incomplete_hex_number:
-        msg += "Incomplete hexadecimal number."
-               " A number that started '0x' was not followed by at least one valid hexadecimal digit. (0-9a-fA-F).";
+        msg.append( "Incomplete hexadecimal number.\n"
+                    "A number that started 0x was not followed by at least one valid\n"
+                    "hexadecimal digit. (0-9a-fA-F).");
         break;
     case missing_arry_or_dict_symbol:
-        msg += "Missing arry or dict symbol."
-               " Something other than 'arry' or 'dict' was found immediately after an open bracket.";
+        msg.append( "Missing arry or dict symbol.\n"
+                    "Something other than arry or dict was found immediately after\n"
+                    "an open bracket.");
         break;
     case missing_dict_value:
-        msg += "dict has a key with no associated value."
-               " For example, (dict \"key\").";
+        msg.append( "dict has a key with no associated value.\n"
+                    "For example, (dict \"key\" \"value\") is valid\n"
+                    "but (dict \"key\") is not.");
         break;
     case unbalanced_close_bracket:
-        msg += "Unbalanced close bracket."
-               " The text contains a close bracket for which there was no corresponding open bracket.";
+        msg.append( "Unbalanced close bracket.\n"
+                    "The text contains a close bracket for which there was no\n"
+                    "corresponding open bracket.");
         break;
     case unclosed_list:
-        msg += "Unclosed list."
-               " The text ended before the list was closed with a ')'. E.g. \"(arry 1 2 3\".";
+        msg.append( "Unclosed list.\n"
+                    "The text ended before the list was closed with a ).\n"
+                    "E.g. (arry 1 2 3) is valid but (arry 1 2 3 is not.");
         break;
     case unclosed_string:
-        msg += "Unclosed string."
-               " The text ended before the string was closed with a double quote.";
+        msg.append( "Unclosed string.\n"
+                    "The text ended before the string was closed with a double quote.");
         break;
     case unescaped_control_character_in_string:
-        msg += "Unescaped control character in string."
-               " Characters between U+0000 and U+001F inclusive and U+007F must be escaped (e.g. \"\\u000A\").";
+        msg.append( "Unescaped control character in string.\n"
+                    "Characters between U+0000 and U+001F inclusive and U+007F\n"
+                    "must be escaped (e.g. \"\\u000A\").");
         break;
     case unexpected_or_unknown_symbol:
-        msg += "Unexpected or unknown symbol."
-               " For example, \"(arry arry)\" - the second arry is unexpected.";
+        msg.append( "Unexpected or unknown symbol.\n"
+                    "For example, in (arry arry) the second arry is unexpected;\n"
+                    "in (arry hat) hat is not a valid Loon symbol.");
         break;
     case string_escape_incomplete:
-        msg += "String escape incomplete."
-               " The string ended before the backslash escape sequence was completed.";
+        msg.append( "String escape incomplete.\n"
+                    "The string ended before the backslash escape sequence was completed.");
         break;
     case string_escape_unknown:
-        msg += "String escape unknown."
-               " Within a string the backslash escape was not followed by any of {\\} {\"} {/} {b} {f} {n} {r} {t} {u}.";
+        msg.append( "String escape unknown.\n"
+                    "Within a string the backslash escape was not followed by\n"
+                    "any of {\\} {\"} {/} {b} {f} {n} {r} {t} {u}.");
         break;
     case bad_utf16_string_escape:
-        msg += "Bad UTF-16 string escape."
-               " Within a string the backslash {u} escape was not followed by four hexadecimal digits (e.g. \\u12AB).";
+        msg.append( "Bad UTF-16 string escape.\n"
+                    "Within a string the backslash {u} escape was not followed\n"
+                    "by four hexadecimal digits (e.g. \\u12AB).");
         break;
     case bad_or_missing_utf16_surrogate_trail:
-        msg += "Bad or missing UTF-16 surrogate trail."
-               " Within a string a UTF-16 surrogate lead value was not followed by a valid UTF-16 surrogate trail value.";
+        msg.append( "Bad or missing UTF-16 surrogate trail.\n"
+                    "Within a string a UTF-16 surrogate lead value was not followed\n"
+                    "by a valid UTF-16 surrogate trail value.");
         break;
     case orphan_utf16_surrogate_trail:
-        msg += "Orphan UTF-16 surrogate trail."
-               " Within a string a UTF-16 surrogate trail value was not preceded by a valid UTF-16 surrogate lead value.";
+        msg.append( "Orphan UTF-16 surrogate trail.\n"
+                    "Within a string a UTF-16 surrogate trail value was not preceded\n"
+                    "by a valid UTF-16 surrogate lead value.");
         break;
     case internal_error_unknown_state:
-        msg += "Internal Loon error: Unknown state.";
+        msg.append( "Internal Loon error: Unknown state.");
         break;
     case internal_error_inconsistent_state:
-        msg += "Internal Loon error: Inconsistent state.";
+        msg.append( "Internal Loon error: Inconsistent state.");
         break;
     case no_error:
-        msg += "No error!";
+        msg.append( "No error!");
         break;
     }
 
@@ -148,8 +180,11 @@ std::string throw_msg(error_id id, int line)
 std::string throw_msg(error_id id, int line, const std::vector<uint8_t> & v)
 {
     std::string msg(throw_msg(id, line));
-    if (!v.empty())
-        msg += " Near '" + std::string(reinterpret_cast<const char *>(&v[0]), v.size()) + "'.";
+    if (!v.empty()) {
+        msg.append("\nFound near '");
+        msg.append(reinterpret_cast<const char *>(&v[0]), v.size());
+        msg.append("'.");
+    }
     return msg;
 }
 
@@ -222,7 +257,7 @@ inline bool is_newline(uint8_t ch)
     // Loon does not recognise NEL (U+0085), LS (U+2028) or PS (U+2029)
 }
 
-bool non_symbol(uint8_t ch)
+inline bool non_symbol(uint8_t ch)
 {
     return ch == '(' || ch == ')' || ch == '"' || ch == ';' || is_whitespace(ch);
 }
@@ -393,10 +428,11 @@ void lexer::atom_number(const std::vector<uint8_t> &, num_type) {}
     and process() is given a non-number character. At this point we can emit
     the number we have accumulated and change to the start state. We then need
     to process the non-number character we were given in the context of the
-    start state. There are (at least?) three ways I could have implemented
-    this: recurse (good), loop/goto (bad) or repeat the start-state code (ugly).
-    I chose to recurse - i.e. process() calls itself with the non-number
-    character. Note that the recursion will never exceed two levels.
+    start state. To do this process() calls itself with the non-number
+    character. Note that the recursion will never exceed two levels. (E.g. in
+    the sequence {.} {(} the bracket will first be processed in the
+    num_leading_dot state, then in the in_symbol state (first recurse) and
+    finally in the start state (second recurse).)
 */
 
 void lexer::process(uint8_t ch)

@@ -2163,8 +2163,8 @@ void fubar(fubar_test_func * f, const char * text)
         return;
     std::vector<char> buf(text_len);
 
-    const int num_restarts = 1000;  // restart from fresh text this number of times
-    const int num_mutations = 100;  // total mutations to perform after each restart
+    const int num_restarts = 200;   // restart from fresh text this number of times
+    const int num_mutations = 200;  // total mutations to perform after each restart
 
     for (int j = 0; j < num_restarts; ++j) {
         std::copy(text, text + text_len, &buf[0]);
@@ -2200,6 +2200,8 @@ void parse(const char * text, size_t len)
     reader r;
     try {
         r.process_chunk(text, len, true);
+        // if this doesn't throw a syntax exception the mutation
+        // must still be valid Loon, but we can't test that
     }
     catch (const loon::reader::exception & e) {
         // not unexpectedly, some mutatations cause syntax errors
