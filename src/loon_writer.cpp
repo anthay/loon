@@ -189,14 +189,15 @@ void base::write_indent(unsigned flags)
             write("  ", 2);
         }
         else {
-            if (need_newline_)
+            if ((flags & space_required) != 0 && need_newline_) {
                 write(newline_.c_str(), newline_.size());
-            const int num_spaces = spaces_per_indent_ * indent_;
-            std::string spaces(num_spaces, ' ');
-            write(spaces.c_str(), num_spaces);
+                const int num_spaces = spaces_per_indent_ * indent_;
+                std::string spaces(num_spaces, ' ');
+                write(spaces.c_str(), num_spaces);
+            }
         }
     }
-    else if (flags & space_required) {
+    else if ((flags & space_required) != 0 && need_newline_) {
         write(" ", 1);
     }
     need_newline_ = true;

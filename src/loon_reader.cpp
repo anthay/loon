@@ -75,117 +75,143 @@ std::string to_string(int n)
     return std::string(p, end);
 }
 
-// return an exception message describing the given error 'id'; the message
-// will be in the form "Syntax error R<id> on line <line>: <description>"
-std::string throw_msg(error_id id, int line)
+// return the meaning of the given 'id' in English 
+std::string exception_msg(error_id id, std::string & description)
 {
-    std::string msg("Syntax error Loon");
-    msg.append(to_string(id));
-    msg.append(" on line ");
-    msg.append(to_string(line));
-    msg.append(": ");
-
     switch (id) {
     case bad_number:
-        msg.append( "Bad number.\n"
-                    "The decimal number contains invalid characters (e.g. 99X)\n"
-                    "or is incomplete (e.g. 9e+).");
-        break;
-    case bad_hex_number:
-        msg.append( "Bad hexadecimal number.\n"
-                    "The hexadecimal number contains invalid characters (e.g. 0x99X).");
-        break;
-    case dict_key_is_not_string:
-        msg.append( "dict key is not a string.\n"
-                    "For example, (dict \"123\" 456) is valid but (dict 123 456) is not.");
-        break;
-    case incomplete_hex_number:
-        msg.append( "Incomplete hexadecimal number.\n"
-                    "A number that started 0x was not followed by at least one valid\n"
-                    "hexadecimal digit. (0-9a-fA-F).");
-        break;
-    case missing_arry_or_dict_symbol:
-        msg.append( "Missing arry or dict symbol.\n"
-                    "Something other than arry or dict was found immediately after\n"
-                    "an open bracket.");
-        break;
-    case missing_dict_value:
-        msg.append( "dict has a key with no associated value.\n"
-                    "For example, (dict \"key\" \"value\") is valid\n"
-                    "but (dict \"key\") is not.");
-        break;
-    case unbalanced_close_bracket:
-        msg.append( "Unbalanced close bracket.\n"
-                    "The text contains a close bracket for which there was no\n"
-                    "corresponding open bracket.");
-        break;
-    case unclosed_list:
-        msg.append( "Unclosed list.\n"
-                    "The text ended before the list was closed with a ).\n"
-                    "E.g. (arry 1 2 3) is valid but (arry 1 2 3 is not.");
-        break;
-    case unclosed_string:
-        msg.append( "Unclosed string.\n"
-                    "The text ended before the string was closed with a double quote.");
-        break;
-    case unescaped_control_character_in_string:
-        msg.append( "Unescaped control character in string.\n"
-                    "Characters between U+0000 and U+001F inclusive and U+007F\n"
-                    "must be escaped (e.g. \"\\u000A\").");
-        break;
-    case unexpected_or_unknown_symbol:
-        msg.append( "Unexpected or unknown symbol.\n"
-                    "For example, in (arry arry) the second arry is unexpected;\n"
-                    "in (arry hat) hat is not a valid Loon symbol.");
-        break;
-    case string_escape_incomplete:
-        msg.append( "String escape incomplete.\n"
-                    "The string ended before the backslash escape sequence was completed.");
-        break;
-    case string_escape_unknown:
-        msg.append( "String escape unknown.\n"
-                    "Within a string the backslash escape was not followed by\n"
-                    "any of {\\} {\"} {/} {b} {f} {n} {r} {t} {u}.");
-        break;
-    case bad_utf16_string_escape:
-        msg.append( "Bad UTF-16 string escape.\n"
-                    "Within a string the backslash {u} escape was not followed\n"
-                    "by four hexadecimal digits (e.g. \\u12AB).");
-        break;
-    case bad_or_missing_utf16_surrogate_trail:
-        msg.append( "Bad or missing UTF-16 surrogate trail.\n"
-                    "Within a string a UTF-16 surrogate lead value was not followed\n"
-                    "by a valid UTF-16 surrogate trail value.");
-        break;
-    case orphan_utf16_surrogate_trail:
-        msg.append( "Orphan UTF-16 surrogate trail.\n"
-                    "Within a string a UTF-16 surrogate trail value was not preceded\n"
-                    "by a valid UTF-16 surrogate lead value.");
-        break;
-    case internal_error_unknown_state:
-        msg.append( "Internal Loon error: Unknown state.");
-        break;
-    case internal_error_inconsistent_state:
-        msg.append( "Internal Loon error: Inconsistent state.");
-        break;
-    case no_error:
-        msg.append( "No error!");
-        break;
-    }
+        description =
+            "The decimal number contains invalid characters (e.g. 99X)"
+            " or is incomplete (e.g. 9e+).";
+        return "Bad number.";
 
+    case bad_hex_number:
+        description =
+            "The hexadecimal number contains invalid characters (e.g. 0x99X).";
+        return "Bad hexadecimal number.";
+
+    case dict_key_is_not_string:
+        description =
+            "For example, (dict \"123\" 456) is valid but (dict 123 456) is not.";
+        return "dict key is not a string.";
+
+    case incomplete_hex_number:
+        description =
+            "A number that started 0x was not followed by at least one valid"
+            " hexadecimal digit. (0-9a-fA-F).";
+        return "Incomplete hexadecimal number.";
+
+    case missing_arry_or_dict_symbol:
+        description =
+            "Something other than arry or dict was found following an open bracket.";
+        return "Missing arry or dict symbol.";
+
+    case missing_dict_value:
+        description =
+            "For example, (dict \"key\" \"value\") is valid"
+            " but (dict \"key\") is not.";
+        return "No value for key in dict.";
+
+    case unbalanced_close_bracket:
+        description =
+            "The text contains a close bracket for which there was no"
+            " corresponding open bracket.";
+        return "Unbalanced close bracket.";
+
+    case unclosed_list:
+        description =
+            "The text ended before the list was closed with a )."
+            " E.g. (arry 1 2 3) is valid but (arry 1 2 3 is not.";
+        return "Unclosed list.";
+
+    case unclosed_string:
+        description =
+            "The text ended before the string was closed with a double quote.";
+        return "Unclosed string.";
+
+    case unescaped_ctrl_char_in_string:
+        description =
+            "Characters between U+0000 and U+001F inclusive and U+007F must be"
+            " escaped (e.g. LINE FEED U+000A may be represented in a string as"
+            " either \"\\n\" or \"\\u000A\", but must not appear as itself).";
+        return "Unescaped control character in string.";
+
+    case unexpected_or_unknown_symbol:
+        description =
+            "For example, in (arry arry) the second arry is unexpected;"
+            " in (arry hat) hat is not a valid Loon symbol.";
+        return "Unexpected or unknown symbol.";
+
+    case string_escape_incomplete:
+        description =
+            "The string ended before the backslash escape sequence was completed.";
+        return "String escape incomplete.";
+
+    case string_escape_unknown:
+        description =
+            "Within a string the backslash escape was not followed by"
+            " any of {\\} {\"} {/} {b} {f} {n} {r} {t} {u}.";
+        return "String escape unknown.";
+
+    case bad_utf16_string_escape:
+        description =
+            "Within a string the backslash {u} escape was not followed by four"
+            " hexadecimal digits (e.g. \\u12AB is valid but \\u12AX is not).";
+        return "Bad UTF-16 string escape.";
+
+    case bad_or_missing_utf16_trail:
+        description =
+            "Within a string a UTF-16 surrogate lead value was not followed"
+            " by a valid UTF-16 surrogate trail value.";
+        return "Bad or missing UTF-16 surrogate trail.";
+
+    case orphan_utf16_surrogate_trail:
+        description =
+            "Within a string a UTF-16 surrogate trail value was not preceded"
+            " by a valid UTF-16 surrogate lead value.";
+        return "Orphan UTF-16 surrogate trail.";
+
+    case internal_error_unknown_state:
+        description = "";
+        return "Internal Loon error: Unknown state.";
+
+    case internal_error_inconsistent:
+        description = "";
+        return "Internal Loon error: Inconsistent state.";
+
+    case no_error:
+        description = "";
+        return "No error.";
+    }
+    // (will some clever compiler warn of unreachable code?)
+    description = "";
+    return "<unknown>";
+}
+
+// return an exception message describing the given error 'id';
+// the message will be in the form
+//      Loon error <id>: <short description>.
+//      Found on line <line>[, at or near '<v>'].
+//      (<long description>.)
+std::string throw_msg(error_id id, int line, const std::vector<uint8_t> & v)
+{
+    std::string description, msg = "Loon error " + to_string(id);
+    msg += ": " + exception_msg(id, description);
+    msg += " Found on line " + to_string(line);
+    if (!v.empty()) {
+        msg += ", at or near '";
+        msg.append(reinterpret_cast<const char *>(&v[0]), v.size());
+        msg += "'";
+    }
+    msg += '.';
+    if (!description.empty())
+        msg += " (" + description + ')';
     return msg;
 }
 
-// as for throw_msg() above but with "Near '<v>'" appended
-std::string throw_msg(error_id id, int line, const std::vector<uint8_t> & v)
+std::string throw_msg(error_id id, int line)
 {
-    std::string msg(throw_msg(id, line));
-    if (!v.empty()) {
-        msg.append("\nFound near '");
-        msg.append(reinterpret_cast<const char *>(&v[0]), v.size());
-        msg.append("'.");
-    }
-    return msg;
+    return throw_msg(id, line, std::vector<uint8_t>());
 }
 
 // return a usable const char pointer to the given 's', even when 's'
@@ -373,7 +399,7 @@ error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
                         || src[0] != '\\' || src[1] != 'u'
                         || !read4hex(src+2, m)
                         || !utf16_is_surrogate_trail(m))
-                        return bad_or_missing_utf16_surrogate_trail;
+                        return bad_or_missing_utf16_trail;
                     n = utf16_combine_surrogate_pair(n, m);
                     src += 6;
                 }
@@ -384,6 +410,14 @@ error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
             break;
 
         default:
+            // an unknown escape; if it's ASCII make it the only thing
+            // in s so it can be used in the exception message
+            const uint8_t c = *--src;
+            s.clear();
+            if (c < 0x80 && !is_ctrl(c)) {
+                s.push_back('\\');
+                s.push_back(c);
+            }
             return string_escape_unknown;
         }
 
@@ -487,13 +521,13 @@ void lexer::process(uint8_t ch)
 
     case in_string:
         if (is_ctrl(ch)) {
-            throw exception(unescaped_control_character_in_string, current_line_,
-                throw_msg(unescaped_control_character_in_string, current_line_).c_str());
+            throw exception(unescaped_ctrl_char_in_string, current_line_,
+                throw_msg(unescaped_ctrl_char_in_string, current_line_).c_str());
         }
         else if (ch == '"') { // the end of the string atom
             const error_id id = expand_loon_string_escapes(value_);
             if (id != no_error)
-                throw exception(id, current_line_, throw_msg(id, current_line_).c_str());
+                throw exception(id, current_line_, throw_msg(id, current_line_, value_).c_str());
             atom_string(value_);
             state_ = start;
         }
@@ -690,11 +724,6 @@ void lexer::process(uint8_t ch)
                 throw_msg(bad_hex_number, current_line_, value_).c_str());
         }
         break;
-
-    default:
-        // all known states have been delt with above
-        throw exception(internal_error_unknown_state, current_line_,
-            throw_msg(internal_error_unknown_state, current_line_).c_str());
     }
 }
 
@@ -815,11 +844,6 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
                 pp_state_ = pp_start;
             }
             break;
-
-        default:
-            // all known states have been delt with above
-            throw exception(internal_error_unknown_state, current_line_,
-                "internal error: unknown state");
         }
     }
     // we've processed all the source text we were given
@@ -965,8 +989,8 @@ void base::end_list()
         throw exception(missing_arry_or_dict_symbol, current_line_,
             throw_msg(missing_arry_or_dict_symbol, current_line_).c_str());
     if (list_state_.empty())
-        throw exception(internal_error_inconsistent_state, current_line_,
-            throw_msg(internal_error_inconsistent_state, current_line_).c_str());
+        throw exception(internal_error_inconsistent, current_line_,
+            throw_msg(internal_error_inconsistent, current_line_).c_str());
 
     if (list_state_.back() == arry_allow_value)
         loon_arry_end();
@@ -976,8 +1000,8 @@ void base::end_list()
         throw exception(missing_dict_value, current_line_,
             throw_msg(missing_dict_value, current_line_).c_str());
     else
-        throw exception(internal_error_inconsistent_state, current_line_,
-            throw_msg(internal_error_inconsistent_state, current_line_).c_str());
+        throw exception(internal_error_inconsistent, current_line_,
+            throw_msg(internal_error_inconsistent, current_line_).c_str());
 
     list_state_.pop_back();
 }

@@ -75,7 +75,7 @@ enum error_id {
     unclosed_string                         = 108,
     // The input text ended before the closing double quote in the string token.
 
-    unescaped_control_character_in_string   = 109,
+    unescaped_ctrl_char_in_string           = 109,
     // There is a character between U+0000 and U+001F inclusive or U+007F in the string token.
     // These are not allowed. To include such a character use either the UTF-16 escape (\uXXXX)
     // or other backslash escape sequences such as \n.
@@ -95,7 +95,7 @@ enum error_id {
     bad_utf16_string_escape                 = 113,
     // Within a string the backslash {u} escape was not followed by four hexadecimal digits (e.g. \u12AB).
 
-    bad_or_missing_utf16_surrogate_trail    = 114,
+    bad_or_missing_utf16_trail              = 114,
     // Within a string a backslash {u} UTF-16 escape sequence was encountered that is
     // a UTF-16 surrogate lead value, but this was not followed by a valid UTF-16 surrogate
     // trail value. (A surrogate lead is in the range \uD800...\uDBFF, a surrogate trail is
@@ -109,8 +109,8 @@ enum error_id {
 
 
     // the following should never occur... the code is broken... please report to author...
-    internal_error_unknown_state            = 0xBADC0DE1,
-    internal_error_inconsistent_state       = 0xBADC0DE2,
+    internal_error_unknown_state            = 998,
+    internal_error_inconsistent             = 999,
 };
 
 class exception : public std::runtime_error {

@@ -73,9 +73,28 @@ unsigned g_fault_count;     // count of number of unit tests that fail
 // return given 'n' as string
 std::string to_string(int n)
 {
-    char buf[40];
-    sprintf(buf, "%d", n);
-    return buf;
+    static_assert(std::numeric_limits<unsigned int>::digits <= 64, "buf is too small");
+    char buf[20]; // -9223372036854775808 .. 9223372036854775807
+    char * const end = buf + sizeof(buf);
+    char * p = end;
+
+    if (n < 0) {
+        do {
+            *--p = '0' - n % 10;
+            n /= 10;
+        }
+        while (n);
+        *--p = '-';
+    }
+    else {
+        do {
+            *--p = '0' + n % 10;
+            n /= 10;
+        }
+        while (n);
+    }
+
+    return std::string(p, end);
 }
 
 }
@@ -163,8 +182,7 @@ void test()
         "(arry\n"
         "    \"I do not like\"\n"
         "    \"green eggs\"\n"
-        "    \"and ham!\"\n"
-        ")"
+        "    \"and ham!\")"
     };
 
     // TEST_EQUAL() is a macro that displays an error if its 
@@ -254,7 +272,7 @@ std::vector<std::string> unserialise(const std::string & s)
     // a file we could feed it in one arbitrary sized buffer full after
     // another until it was all processed, setting is_last_chunk to true
     // only for the last chunk.
-    reader.process_chunk(s.c_str(), s.size(), true/*is last chunk*/);
+    reader.process_chunk(s.c_str(), s.size(), /*is_last_chunk=*/true);
 
     // 9. Finally, return the accumulated strings to the caller.
     return reader.strings;
@@ -362,8 +380,7 @@ void test()
         "(dict\n"
         "    \"all work\"  \"no play\"\n"
         "    \"walk\"  \"don't run\"\n"
-        "    \"waving\"  \"not drowning\"\n"
-        ")"
+        "    \"waving\"  \"not drowning\")"
     };
 
     TEST_EQUAL(loon, expected);
@@ -524,7 +541,7 @@ std::map<std::string, std::string> unserialise(const std::string & s)
     // 11. Finally, we use the reader class we just made to parse the given
     // Loon text and return the result to the caller.
     map_reader reader;
-    reader.process_chunk(s.c_str(), s.size(), true/*is last chunk*/);
+    reader.process_chunk(s.c_str(), s.size(), /*is_last_chunk=*/true);
     return reader.final_value();
 }
 
@@ -840,7 +857,7 @@ private:
                 top.value[top.key] = value;
             }
             else
-                throw std::runtime_error("variant_reader: internal error");
+                throw std::runtime_error("variant_reader: syntax error");
         }
     }
 };
@@ -852,7 +869,7 @@ var unserialise(const std::string & t)
     // 7. Finally, we use the reader class we just made to parse the given
     // Loon text and return the result to the caller.
     variant_reader reader;
-    reader.process_chunk(t.c_str(), t.size(), true/*is last chunk*/);
+    reader.process_chunk(t.c_str(), t.size(), /*is_last_chunk=*/true);
     return reader.final_value();
 }
 
@@ -1000,56 +1017,45 @@ void test()
         "        (arry\n"
         "            1\n"
         "            0\n"
-        "            0\n"
-        "        )\n"
+        "            0)\n"
         "        (arry\n"
         "            0\n"
         "            1\n"
-        "            0\n"
-        "        )\n"
+        "            0)\n"
         "        (arry\n"
         "            0\n"
         "            0\n"
-        "            1\n"
-        "        )\n"
-        "    )\n"
+        "            1))\n"
         "    \"an empty arry\"  (arry)\n"
         "    \"an empty dict\"  (dict)\n"
         "    \"books\"  (arry\n"
         "        (dict\n"
         "            \"author\"  \"Dr. Seuss\"\n"
-        "            \"name\"  \"Green Eggs and Ham\"\n"
-        "        )\n"
+        "            \"name\"  \"Green Eggs and Ham\")\n"
         "        (dict\n"
         "            \"author\"  \"Douglas Hofstadter\"\n"
-        "            \"name\"  \"G\xC3\xB6""del, Escher, Bach\"\n"
-        "        )\n"
-        "    )\n"
+        "            \"name\"  \"G\xC3\xB6""del, Escher, Bach\"))\n"
         "    \"heterogeneous array\"  (arry\n"
         "        \"the\"\n"
         "        1\n"
         "        true\n"
-        "        \"brace style\"\n"
-        "    )\n"
+        "        \"brace style\")\n"
         "    \"key\"  \"value\"\n"
         "    \"loon\"  (arry\n"
         "        \"a foolish fellow?\"\n"
         "        \"list oriented object notation?\"\n"
-        "        \"JSON done with S-expressions?\"\n"
-        "    )\n"
+        "        \"JSON done with S-expressions?\")\n"
         "    \"one two\"  (arry\n"
         "        1\n"
-        "        2\n"
-        "    )\n"
+        "        2)\n"
         "    \"three\"  3\n"
         "    \"twelve\"  (arry\n"
-        "        12\n"
-        "    )\n"
-        ")"
+        "        12))"
     };
 
     // Now try serialising the variant to see if we get the expected serialisation text.
     const std::string b(serialise(a));
+    //std::cout << b << '\n';
     TEST_EQUAL(b, expected_loon);
 }
 
@@ -1243,7 +1249,7 @@ section_map unserialise(const std::string & s)
     };
 
     ini_reader reader;
-    reader.process_chunk(s.c_str(), s.size(), true/*is last chunk*/);
+    reader.process_chunk(s.c_str(), s.size(), /*is_last_chunk=*/true);
     return reader.final_value();
 }
 
@@ -1260,13 +1266,10 @@ void test()
 "(dict\n\
     \"section1\"  (dict\n\
         \"entry1\"  \"some value 1.1\"\n\
-        \"entry2\"  \"some value 1.2\"\n\
-    )\n\
+        \"entry2\"  \"some value 1.2\")\n\
     \"section2\"  (dict\n\
         \"entry1\"  \"some value 2.1\"\n\
-        \"entry2\"  \"some value 2.2\"\n\
-    )\n\
-)"
+        \"entry2\"  \"some value 2.2\"))"
     };
 
     const std::string loon(serialise(ini));
@@ -1337,7 +1340,7 @@ std::string insert_line_continuations(const std::string & s)
 var unserialise(const std::string & loon_text)
 {
     variant_reader reader;
-    reader.process_chunk(loon_text.c_str(), loon_text.size(), true/*is last chunk*/);
+    reader.process_chunk(loon_text.c_str(), loon_text.size(), /*is_last_chunk=*/true);
     return reader.final_value();
 }
 
@@ -1349,14 +1352,14 @@ var unserialise(const std::string & loon_text, int chunk_size)
     const char * p_end = p + loon_text.size();
     while (p < p_end) {
         // test that empty chunks do no harm
-        reader.process_chunk(0, 0, false/*not last chunk*/);
+        reader.process_chunk(0, 0, /*is_last_chunk=*/false);
         if (p_end - p < chunk_size)
             chunk_size = p_end - p;
-        reader.process_chunk(p, chunk_size, false/*not last chunk*/);
+        reader.process_chunk(p, chunk_size, /*is_last_chunk=*/false);
         p += chunk_size;
     }
-    reader.process_chunk(0, 0, false/*not last chunk*/); // another nop test
-    reader.process_chunk(0, 0, true/*is last chunk*/);
+    reader.process_chunk(0, 0, /*is_last_chunk=*/false); // another nop test
+    reader.process_chunk(0, 0, /*is_last_chunk=*/true);
     return reader.final_value();
 }
 
@@ -1495,6 +1498,8 @@ void test_simple_valid_loon()
 }
 
 
+/////////////////////////////////////////////////////////////////////////////
+
 void test_strings()
 {
     test("\"\"", var(""));
@@ -1542,6 +1547,7 @@ void test_strings()
 }
 
 
+/////////////////////////////////////////////////////////////////////////////
 
 void test_numbers()
 {
@@ -1593,7 +1599,7 @@ void test_numbers()
         number_reader()
         {
             // set the reader up ready to process a stream of loon values
-            base::process_chunk("(arry ", 6, false/*is_last_chunk*/);
+            base::process_chunk("(arry ", 6, /*is_last_chunk=*/false);
         }
 
         void test_number(const std::string & num)
@@ -1604,12 +1610,12 @@ void test_numbers()
             const char * p = num.c_str();
             const char * const p_end = p + num.size();
             for (; p != p_end; ++p)
-                base::process_chunk(p, 1, false/*is_last_chunk*/);
+                base::process_chunk(p, 1, /*is_last_chunk=*/false);
 
             // give the reader some white space, which should cause it
             // to emit the number we just gave it
             TEST_EQUAL(num_, "#TEST#");
-            base::process_chunk(" ", 1, false/*is_last_chunk*/);
+            base::process_chunk(" ", 1, /*is_last_chunk=*/false);
             TEST_EQUAL(num_, num);
         }
 
@@ -1889,6 +1895,8 @@ void test_write_loon_hex_u32()
 }
 
 
+/////////////////////////////////////////////////////////////////////////////
+
 void expect_exception(
     const std::string & loon,
     loon::reader::error_id id,
@@ -1925,6 +1933,7 @@ void expect_exception(
 }
 
 
+
 void test_syntax_errors()
 {
     struct test_tuple {
@@ -1959,17 +1968,18 @@ void test_syntax_errors()
         {"(arry",                       1,  unclosed_list},
         {"(arry (arry)",                1,  unclosed_list},
         {"(arry 1 2 3",                 1,  unclosed_list},
-        {"\"a\nb\"",                    2,  unescaped_control_character_in_string},
-        {"\"\1\"",                      1,  unescaped_control_character_in_string},
-        {"\"\x1F\"",                    1,  unescaped_control_character_in_string},
-        {"\"\x7F\"",                    1,  unescaped_control_character_in_string},
+        {"\"a\nb\"",                    2,  unescaped_ctrl_char_in_string},
+        {"\"\1\"",                      1,  unescaped_ctrl_char_in_string},
+        {"\"\x1F\"",                    1,  unescaped_ctrl_char_in_string},
+        {"\"\x7F\"",                    1,  unescaped_ctrl_char_in_string},
         {"\"\\x00\"",                   1,  string_escape_unknown},
+        {"\"\\\xC3\xB6\"",              1,  string_escape_unknown}, // \e-umlaut
         {"\"\\u\"",                     1,  bad_utf16_string_escape},
         {"\"\\u0\"",                    1,  bad_utf16_string_escape},
         {"\"\\u00\"",                   1,  bad_utf16_string_escape},
         {"\"\\u000\"",                  1,  bad_utf16_string_escape},
         {"\"\\u000G\"",                 1,  bad_utf16_string_escape},
-        {"\"\\uD834\"",                 1,  bad_or_missing_utf16_surrogate_trail},
+        {"\"\\uD834\"",                 1,  bad_or_missing_utf16_trail},
         {"\"\\uDD1e\"",                 1,  orphan_utf16_surrogate_trail},
         {"\"a\\\nb",                    2,  unclosed_string},
         {"\"abc",                       1,  unclosed_string},
@@ -1996,7 +2006,7 @@ void test_syntax_errors()
         expect_exception(p->text, p->expected_exception_id, p->expected_line);
 
     const char s1[] = {'"', '\0', '"' };
-    expect_exception(std::string(s1, s1 + sizeof(s1)), unescaped_control_character_in_string, 1);
+    expect_exception(std::string(s1, s1 + sizeof(s1)), unescaped_ctrl_char_in_string, 1);
 
     // test the reader detects duplicate keys
     {
@@ -2013,6 +2023,7 @@ void test_syntax_errors()
 }
 
 
+/////////////////////////////////////////////////////////////////////////////
 
 void test_reset()
 {
@@ -2021,7 +2032,7 @@ void test_reset()
     // feed reader some bad text that will throw an exception
     bool got_exception = false;
     try {
-        reader.process_chunk("(arry 0x ", 9, false/*is last chunk*/);
+        reader.process_chunk("(arry 0x ", 9, /*is_last_chunk=*/false);
     }
     catch (const loon::reader::exception &) {
         got_exception = true;
@@ -2031,7 +2042,7 @@ void test_reset()
     // now feed it some valid text and expect an exception
     got_exception = false;
     try {
-        reader.process_chunk("0x9", 3, true/*is last chunk*/);
+        reader.process_chunk("0x9", 3, /*is_last_chunk=*/true);
     }
     catch (const loon::reader::exception &) {
         got_exception = true;
@@ -2043,7 +2054,7 @@ void test_reset()
     reader.reset();
     got_exception = false;
     try {
-        reader.process_chunk("0x9", 3, true/*is last chunk*/);
+        reader.process_chunk("0x9", 3, /*is_last_chunk=*/true);
     }
     catch (const loon::reader::exception &) {
         got_exception = true;
@@ -2053,8 +2064,115 @@ void test_reset()
 }
 
 
+/////////////////////////////////////////////////////////////////////////////
+
+void test_adhoc_valid()
+{
+    struct {
+        struct var_writer : public loon::writer::base {
+            std::string str;
+
+        private:
+            virtual void write(const char * utf8, size_t len)
+            {
+                str.append(utf8, len);
+            }
+        };
+
+        void write_var(const var & v, var_writer & writer)
+        {
+            switch (v.type()) {
+            case var::type_null:    writer.loon_null();                 break;
+            case var::type_bool:    writer.loon_bool(v.as_bool());      break;
+            case var::type_string:  writer.loon_string(v.as_string());  break;
+            case var::type_int:     writer.loon_dec_s32(v.as_int());    break;
+            case var::type_float:   writer.loon_double(v.as_float());   break;
+
+            case var::type_arry:
+                {
+                    writer.loon_arry_begin();
+                    const var::arry_t & a(v.as_arry_t());
+                    if (!a.empty()) {
+                        for (var::arry_t::const_iterator i = a.begin(); i != a.end(); ++i) {
+                            write_var(*i, writer);
+                        }
+                    }
+                    writer.loon_arry_end();
+                }
+                break;
+
+            case var::type_dict:
+                {
+                    writer.loon_dict_begin();
+                    const var::dict_t & a(v.as_dict_t());
+                    if (!a.empty()) {
+                        for (var::dict_t::const_iterator i = a.begin(); i != a.end(); ++i) {
+                            writer.loon_dict_key(i->first); // write the key
+                            write_var(i->second, writer);   // write the value
+                        }
+                    }
+                    writer.loon_dict_end();
+                }
+                break;
+
+            default: // (should never happen)
+                throw std::runtime_error("unknown variant type");
+            }
+        }
+
+        std::string serialise(const var & v)
+        {
+            var_writer writer;
+            TEST_EQUAL(writer.set_pretty(false), true);     // previous value of pretty is true
+            TEST_EQUAL(writer.set_pretty(false), false);    // now previous value is false
+            write_var(v, writer);
+            return writer.str;
+        }
+
+        // parse given 'in' to a varient, then return the serialisation of that varient
+        std::string operator()(const std::string & in)
+        {
+            const std::string out(serialise(unserialise(in)));
+            //std::cout << out << '\n';
+            return out;
+        }
+    } parse;
 
 
+    TEST_EQUAL(parse("1"),                                "1");
+    TEST_EQUAL(parse(".1"),                               "0.1");
+    TEST_EQUAL(parse("-.1"),                              "-0.1");
+    TEST_EQUAL(parse("+.1"),                              "0.1");
+    TEST_EQUAL(parse("1."),                               "1.0");
+    TEST_EQUAL(parse(".1e1"),                             "1.0");
+    TEST_EQUAL(parse("-1."),                              "-1.0");
+    TEST_EQUAL(parse("000.0000"),                         "0.0");
+
+    TEST_EQUAL(parse("\"\\u0000\""),                      "\"\\u0000\"");
+    TEST_EQUAL(parse("\"\\u001f\""),                      "\"\\u001F\"");
+    TEST_EQUAL(parse("\"\\u007f\""),                      "\"\\u007F\"");
+    TEST_EQUAL(parse("\"\\u12AB\""),                      "\"\xE1\x8A\xAB\"");
+    TEST_EQUAL(parse("\"\\uFFFF\""),                      "\"\xEF\xBF\xBF\"");
+    TEST_EQUAL(parse("\"\\udbff\\udfff\""),               "\"\xF4\x8F\xBF\xBF\"");
+
+    TEST_EQUAL(parse("(arry .1 0.2 3. 4.0)"),             "(arry 0.1 0.2 3.0 4.0)");
+    TEST_EQUAL(parse("(arry\t.1\t0.2\t3.\t4.0)"),         "(arry 0.1 0.2 3.0 4.0)");
+    TEST_EQUAL(parse("(arry\r.1\r0.2\r3.\r4.0)"),         "(arry 0.1 0.2 3.0 4.0)");
+    TEST_EQUAL(parse("(arry\n.1\n0.2\n3.\n4.0)"),         "(arry 0.1 0.2 3.0 4.0)");
+    TEST_EQUAL(parse("(arry 1.)"),                        "(arry 1.0)");
+    TEST_EQUAL(parse("(arry 1.(arry).2)"),                "(arry 1.0 (arry) 0.2)");
+    TEST_EQUAL(parse("(arry .1(arry)2.)"),                "(arry 0.1 (arry) 2.0)");
+    TEST_EQUAL(parse("(arry(arry)true)"),                 "(arry (arry) true)");
+    TEST_EQUAL(parse("( arry( arry( arry)))"),            "(arry (arry (arry)))");
+    TEST_EQUAL(parse("(arry(arry(arry)))"),               "(arry (arry (arry)))");
+    TEST_EQUAL(parse("(arry 1.\"abc\".1\"def\"\"ghi\")"), "(arry 1.0 \"abc\" 0.1 \"def\" \"ghi\")");
+
+    TEST_EQUAL(parse("(dict\"k\"null)"),                  "(dict \"k\" null)");
+    TEST_EQUAL(parse("(dict\"a\"\"b\")"),                 "(dict \"a\" \"b\")");
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
 
 std::string make_random_string()
 {
@@ -2145,6 +2263,7 @@ void soaktest()
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////
 
 // return a random number in the range (0, n]
 int random(int n)
@@ -2199,14 +2318,14 @@ void parse(const char * text, size_t len)
 
     reader r;
     try {
-        r.process_chunk(text, len, true);
+        r.process_chunk(text, len, /*is_last_chunk=*/true);
         // if this doesn't throw a syntax exception the mutation
         // must still be valid Loon, but we can't test that
     }
     catch (const loon::reader::exception & e) {
         // not unexpectedly, some mutatations cause syntax errors
         if (e.id() == loon::reader::internal_error_unknown_state
-            || e.id() == loon::reader::internal_error_inconsistent_state) {
+            || e.id() == loon::reader::internal_error_inconsistent) {
             // if this ever happens we'll want to dump out the text that caused it
             std::cout << "loon::reader::exception: " << e.what() << "\n";
             TEST_FAILED();
@@ -2240,6 +2359,7 @@ void fuzztest()
 }
 
 
+/////////////////////////////////////////////////////////////////////////////
 
 void test()
 {
@@ -2249,6 +2369,7 @@ void test()
     test_write_loon_hex_u32();
     test_syntax_errors();
     test_reset();
+    test_adhoc_valid();
     soaktest();
     fuzztest();
 }
