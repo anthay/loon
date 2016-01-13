@@ -75,7 +75,7 @@ std::string to_string(int n)
     return std::string(p, end);
 }
 
-// return the meaning of the given 'id' in English 
+// return the meaning of the given 'id' in English
 std::string exception_msg(error_id id, std::string & description)
 {
     switch (id) {
@@ -138,8 +138,9 @@ std::string exception_msg(error_id id, std::string & description)
 
     case unexpected_or_unknown_symbol:
         description =
-            "For example, in (arry arry) the second arry is unexpected;"
-            " in (arry hat) hat is not a valid Loon symbol.";
+            "For example, in (arry 1 2 dict) dict is a valid Loon symbol but"
+            " it appears here in an unexpected location. And in (array 1 2)"
+            " array is not a valid Loon symbol.";
         return "Unexpected or unknown symbol.";
 
     case string_escape_incomplete:
@@ -353,15 +354,19 @@ int write_utf32_as_utf8(uint8_t * dst, uint32_t n)
 error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
 {
     if (s.empty())
-        return no_error; // empty string => no escapes
+        return no_error;    // empty string => no escapes
+
+    const uint8_t esc_char = '\\';
 
     // skip straight to first escape, if any
+    s.push_back(esc_char);  // add sentinal (may cause reallocation)
     uint8_t * src = &s[0];
-    const uint8_t * const end = src + s.size();
-    while (src < end && *src != '\\')
+    const uint8_t * const end = src + s.size() - 1;
+    while (*src != esc_char)
         ++src;
+    s.pop_back();           // remove sentinal
     if (src == end)
-        return no_error; // string contains no escapes
+        return no_error;    // string contains no escapes
 
     // replace all escape sequences with their respective UTF-8 expansion
     // and copy the rest of the string down over itself (because all escape
@@ -390,22 +395,22 @@ error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
             {
                 if (end - src < 4)
                     return bad_utf16_string_escape;
-                uint32_t n, m;
-                if (!read4hex(src, n))
+                uint32_t x, y;
+                if (!read4hex(src, x))
                     return bad_utf16_string_escape;
                 src += 4;
-                if (utf16_is_surrogate_lead(n)) { // => need \uYYYY trail value
+                if (utf16_is_surrogate_lead(x)) { // => need \uYYYY trail value
                     if (end - src < 6
-                        || src[0] != '\\' || src[1] != 'u'
-                        || !read4hex(src+2, m)
-                        || !utf16_is_surrogate_trail(m))
+                        || src[0] != esc_char || src[1] != 'u'
+                        || !read4hex(src+2, y)
+                        || !utf16_is_surrogate_trail(y))
                         return bad_or_missing_utf16_trail;
-                    n = utf16_combine_surrogate_pair(n, m);
+                    x = utf16_combine_surrogate_pair(x, y);
                     src += 6;
                 }
-                else if (utf16_is_surrogate_trail(n))
+                else if (utf16_is_surrogate_trail(x))
                     return orphan_utf16_surrogate_trail;
-                dst += write_utf32_as_utf8(dst, n);
+                dst += write_utf32_as_utf8(dst, x);
             }
             break;
 
@@ -415,14 +420,14 @@ error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
             const uint8_t c = *--src;
             s.clear();
             if (c < 0x80 && !is_ctrl(c)) {
-                s.push_back('\\');
+                s.push_back(esc_char);
                 s.push_back(c);
             }
             return string_escape_unknown;
         }
 
         // copy upto next escape
-        while (src < end && *src != '\\')
+        while (src < end && *src != esc_char)
             *dst++ = *src++;
     }
     s.resize(dst - &s[0]); // shrink to fit
@@ -735,22 +740,6 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
 
     // loop once for every byte in [utf8, utf8 + len)
     for (; p != end; ++p) {
-        // update line counter if this is a newline
-        if (*p == '\x0D') { // {CR} => newline
-            ++current_line_;
-            cr_ = true;
-        }
-        else {
-            if (*p == '\x0B' || *p == '\x0C') // {VT} or {FF} => newline
-                ++current_line_;
-            else if (*p == '\x0A' && !cr_) {
-                // {LF} => {newline} (don't count {LF} if preceeded by {CR}
-                // because we already counted it when we saw the {CR})
-                ++current_line_;
-            }
-            cr_ = false;
-        }
-
         switch (pp_state_) { // "pre-processor" state
         case pp_in_bom_1:
             if (*p == 0xBB) // {0xEF} {0xBB} => pp_in_bom_2
@@ -844,6 +833,22 @@ void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
                 pp_state_ = pp_start;
             }
             break;
+        }
+
+        // update line counter if this is a newline
+        if (*p == '\r') { // {CR} => newline
+            ++current_line_;
+            cr_ = true;
+        }
+        else {
+            if (*p == '\v' || *p == '\f') // {VT} or {FF} => newline
+                ++current_line_;
+            else if (*p == '\n' && !cr_) {
+                // {LF} => {newline} (don't count {LF} if preceeded by {CR}
+                // because we already counted it when we saw the {CR})
+                ++current_line_;
+            }
+            cr_ = false;
         }
     }
     // we've processed all the source text we were given

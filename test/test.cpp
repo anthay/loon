@@ -1967,8 +1967,9 @@ void test_syntax_errors()
         {"(dict",                       1,  unclosed_list},
         {"(arry",                       1,  unclosed_list},
         {"(arry (arry)",                1,  unclosed_list},
+        {"(arry (arry)\n\n",            3,  unclosed_list},
         {"(arry 1 2 3",                 1,  unclosed_list},
-        {"\"a\nb\"",                    2,  unescaped_ctrl_char_in_string},
+        {"\"a\nb\"",                    1,  unescaped_ctrl_char_in_string},
         {"\"\1\"",                      1,  unescaped_ctrl_char_in_string},
         {"\"\x1F\"",                    1,  unescaped_ctrl_char_in_string},
         {"\"\x7F\"",                    1,  unescaped_ctrl_char_in_string},
@@ -1991,7 +1992,9 @@ void test_syntax_errors()
         {"(dict \"key\" hat)",          1,  unexpected_or_unknown_symbol},
         {"(dict \"key\" arry)",         1,  unexpected_or_unknown_symbol},
         {"(arry arry)",                 1,  unexpected_or_unknown_symbol},
-        {"(arry cake)",                 1,  unexpected_or_unknown_symbol},
+        {"(arry klaatu)",               1,  unexpected_or_unknown_symbol},
+        {"(arry 1\nbarada)",            2,  unexpected_or_unknown_symbol},
+        {"(arry 1 (nikto\n",            1,  missing_arry_or_dict_symbol},
         {"xyz",                         1,  unexpected_or_unknown_symbol},
 
         // UTF-8 BOM is {0xEF} {0xBB} {0xBF}; test sequences that almost
@@ -2079,7 +2082,7 @@ void test_adhoc_valid()
             }
         };
 
-        void write_var(const var & v, var_writer & writer)
+        void write_var(const var & v, var_writer & writer) const
         {
             switch (v.type()) {
             case var::type_null:    writer.loon_null();                 break;
@@ -2120,7 +2123,7 @@ void test_adhoc_valid()
             }
         }
 
-        std::string serialise(const var & v)
+        std::string serialise(const var & v) const
         {
             var_writer writer;
             TEST_EQUAL(writer.set_pretty(false), true);     // previous value of pretty is true
@@ -2130,7 +2133,7 @@ void test_adhoc_valid()
         }
 
         // parse given 'in' to a varient, then return the serialisation of that varient
-        std::string operator()(const std::string & in)
+        std::string operator()(const std::string & in) const
         {
             const std::string out(serialise(unserialise(in)));
             //std::cout << out << '\n';
@@ -2147,6 +2150,7 @@ void test_adhoc_valid()
     TEST_EQUAL(parse(".1e1"),                             "1.0");
     TEST_EQUAL(parse("-1."),                              "-1.0");
     TEST_EQUAL(parse("000.0000"),                         "0.0");
+    TEST_EQUAL(parse("-.0"),                              "-0.0");
 
     TEST_EQUAL(parse("\"\\u0000\""),                      "\"\\u0000\"");
     TEST_EQUAL(parse("\"\\u001f\""),                      "\"\\u001F\"");
@@ -2167,84 +2171,128 @@ void test_adhoc_valid()
     TEST_EQUAL(parse("(arry(arry(arry)))"),               "(arry (arry (arry)))");
     TEST_EQUAL(parse("(arry 1.\"abc\".1\"def\"\"ghi\")"), "(arry 1.0 \"abc\" 0.1 \"def\" \"ghi\")");
 
+    TEST_EQUAL(parse("(dict\"pi\"3.14)"),                 "(dict \"pi\" 3.14)");
     TEST_EQUAL(parse("(dict\"k\"null)"),                  "(dict \"k\" null)");
     TEST_EQUAL(parse("(dict\"a\"\"b\")"),                 "(dict \"a\" \"b\")");
+    TEST_EQUAL(parse("(dict\"\"\"\")"),                   "(dict \"\" \"\")");
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
 
-std::string make_random_string()
+// Test that loon::reader::base::current_line() returns the expected value.
+void test_current_line()
 {
-    std::string result;
-    const int len = rand() % 25;
-    for (int i = 0; i < len; ++i) {
-        if (rand() % 20 == 0)
-            result += static_cast<char>(rand() % 0x20);//TBD non-valid UTF-8?
-        else
-            result += static_cast<char>(rand() % 0x60 + 0x20);//TBD non-valid UTF-8?
-    }
+    // Test that current_line() returns the correct line number for the last
+    // symbol on a line.
+    struct reader : private loon::reader::base  {
+        using base::process_chunk;
+    private:
+        virtual void loon_arry_begin() {}
+        virtual void loon_arry_end() {}
+        virtual void loon_dict_begin() {}
+        virtual void loon_dict_end() {}
+        virtual void loon_dict_key(const char *, size_t) {}
+        virtual void loon_null() {}
+        virtual void loon_bool(bool) {}
+        virtual void loon_string(const char *, size_t) {}
 
-    return result;
+        virtual void loon_number(const char * utf8, size_t len, loon::reader::num_type)
+        {
+            TEST_EQUAL(std::stoi(std::string(utf8, len)), current_line());
+        }
+    };
+
+    // each arry value equals the line number on which it appears
+    const char text[] =
+        "(arry 1\n"
+        "    2\r"
+        "    3\r\n"
+        "    4\v"
+        "    5\f"
+        "    6;\n"
+        "    7\n\n\r\r\r\n\r\n\v\v\f\f"
+        "    17)";
+    const size_t len = sizeof(text) - 1;
+
+    reader r;
+    r.process_chunk(text, len, /*is_last_chunk=*/true);
 }
 
-var make_random_object(int);
 
-var make_random_arry(int maxsize)
-{
-    const int size = maxsize ? rand() % maxsize : 0;
-    var result(var::make_arry(size));
-    for (int i = 0; i < size; ++i)
-        result[i] = make_random_object(maxsize - 1);
-    return result;
-}
 
-var make_random_dict(int maxsize)
-{
-    const int size = maxsize ? rand() % maxsize : 0;
-    var result(var::make_dict());
-    for (int i = 0; i < size; ++i)
-        result[make_random_string()] = make_random_object(maxsize - 1);
-    return result;
-}
+/////////////////////////////////////////////////////////////////////////////
 
-// flip a coin, return true if it comes down heads
-bool heads()
-{
-    return rand() % 2 != 0;
-}
-
-var make_random_object(int maxsize)
-{
-    const int size = rand() % maxsize;
-    switch (rand() % (maxsize ? 7 : 5)) {
-        // 0..4 create leaves only
-        case 0: return var::make_null();
-        case 1: return var::make_bool(heads());
-        case 2: return var(rand() * (heads() ? 1 : -1));
-        case 3: return var((heads() ? 1e20 : 1e-20) * rand() * (heads() ? 1 : -1));
-        case 4: return var(make_random_string());
-        // 5..6 create branches
-        case 5: return make_random_arry(size);
-        case 6: return make_random_dict(size);
-    }
-
-    // (for testing avoid 0.0 and -0.0 as loon_double() renders them as 0 and -0
-    // so they are interpreted as integers when read back from the Loon text
-    // so the original var does not match the var unserialised from the text)
-
-    return var();
-}
 
 void soaktest()
 {
+    struct local {
+
+        static std::string make_random_string()
+        {
+            std::string result;
+            const int len = rand() % 25;
+            for (int i = 0; i < len; ++i) {
+                if (rand() % 20 == 0)
+                    result += static_cast<char>(rand() % 0x20);//TBD non-valid UTF-8?
+                else
+                    result += static_cast<char>(rand() % 0x60 + 0x20);//TBD non-valid UTF-8?
+            }
+
+            return result;
+        }
+
+        static var make_random_arry(int maxsize)
+        {
+            const int size = maxsize ? rand() % maxsize : 0;
+            var result(var::make_arry(size));
+            for (int i = 0; i < size; ++i)
+                result[i] = make_random_object(maxsize - 1);
+            return result;
+        }
+
+        static var make_random_dict(int maxsize)
+        {
+            const int size = maxsize ? rand() % maxsize : 0;
+            var result(var::make_dict());
+            for (int i = 0; i < size; ++i)
+                result[make_random_string()] = make_random_object(maxsize - 1);
+            return result;
+        }
+
+        // flip a coin, return true if it comes down heads
+        static bool heads()
+        {
+            return rand() % 2 != 0;
+        }
+
+        static var make_random_object(int maxsize)
+        {
+            const int size = rand() % maxsize;
+            switch (rand() % (maxsize ? 7 : 5)) {
+                // 0..4 create leaves only
+                case 0: return var::make_null();
+                case 1: return var::make_bool(heads());
+                case 2: return var(rand() * (heads() ? 1 : -1));
+                case 3: return var((heads() ? 1e20 : 1e-20) * rand() * (heads() ? 1 : -1));
+                case 4: return var(make_random_string());
+                // 5..6 create branches
+                case 5: return make_random_arry(size);
+                case 6: return make_random_dict(size);
+            }
+
+            return var();
+        }
+    };
+
+
     // the bigger these two settings the more of a soaking you get, and the longer it takes
     const int maxsize = 50;
     int iterations = 50;
 
     while (iterations--) {
         // create a, an arbitrary (random) structure containing arbitrary (random) data
-        const var a(make_random_object(maxsize));
+        const var a(local::make_random_object(maxsize));
 
         // create b, a loon text representation of a
         const std::string b(serialise(a));
@@ -2265,97 +2313,104 @@ void soaktest()
 
 /////////////////////////////////////////////////////////////////////////////
 
-// return a random number in the range (0, n]
-int random(int n)
-{
-    return rand() % n;
-}
 
-
-typedef void fubar_test_func(const char * mutated_text, size_t mutated_text_len);
-
-// repeatedly call given 'f' with progressively more mutated 'text'
-void fubar(fubar_test_func * f, const char * text)
-{
-    const size_t text_len = static_cast<size_t>(strlen(text));
-    if (text_len == 0)
-        return;
-    std::vector<char> buf(text_len);
-
-    const int num_restarts = 200;   // restart from fresh text this number of times
-    const int num_mutations = 200;  // total mutations to perform after each restart
-
-    for (int j = 0; j < num_restarts; ++j) {
-        std::copy(text, text + text_len, &buf[0]);
-        for (int i = 0; i < num_mutations; ++i) {
-            buf[random(text_len)] = static_cast<char>(random(256));
-            f(&buf[0], text_len);
-        }
-    }
-}
-
-void parse(const char * text, size_t len)
-{
-    /*  Parse the given mutated text. The given text may or may not be
-        syntactically correct, depending on how it has been mutated.
-        The parse may succeed or it may fail with a Loon syntax exception.
-        But what matters is that it never fails with any other kind of
-        exception, and it never crashes! */
-
-    struct reader : private loon::reader::base  {
-        using base::process_chunk;
-    private:
-        virtual void loon_arry_begin() {}
-        virtual void loon_arry_end() {}
-        virtual void loon_dict_begin() {}
-        virtual void loon_dict_end() {}
-        virtual void loon_dict_key(const char *, size_t) {}
-        virtual void loon_null() {}
-        virtual void loon_bool(bool) {}
-        virtual void loon_number(const char *, size_t, loon::reader::num_type) {}
-        virtual void loon_string(const char *, size_t) {}
-    };
-
-    reader r;
-    try {
-        r.process_chunk(text, len, /*is_last_chunk=*/true);
-        // if this doesn't throw a syntax exception the mutation
-        // must still be valid Loon, but we can't test that
-    }
-    catch (const loon::reader::exception & e) {
-        // not unexpectedly, some mutatations cause syntax errors
-        if (e.id() == loon::reader::internal_error_unknown_state
-            || e.id() == loon::reader::internal_error_inconsistent) {
-            // if this ever happens we'll want to dump out the text that caused it
-            std::cout << "loon::reader::exception: " << e.what() << "\n";
-            TEST_FAILED();
-        }
-        // else, assume the reported syntax error is correct and ignore it
-    }
-    catch (const std::exception & e) {
-        // if this ever happens we'll want to dump out the text that caused it
-        std::cout << "std::exception: " << e.what() << "\n";
-        TEST_FAILED();
-    }
-    catch (...) {
-        // if this ever happens we'll want to dump out the text that caused it
-        std::cout << "exception!\n";
-        TEST_FAILED();
-    }
-}
 
 // let's see if some primitive fuzz testing will reveal any bugs
 void fuzztest()
 {
-    fubar(parse, "true");
-    fubar(parse, "1.234");
-    fubar(parse, "0xABC123");
-    fubar(parse, "(arry 1 2 3 4)");
-    fubar(parse, "(dict \"key\" \"value\")");
-    fubar(parse, "(arry (arry 1 2 3 4) true false .999)");
-    fubar(parse, "\"The rain in Spain stays mainly in the plain.\"");
-    fubar(parse, "(dict \"k\" (dict \"k\" (dict \"k\" (dict \"k\" (dict)))))");
-    fubar(parse, "(arry(arry(arry(arry(arry(arry(arry(arry(arry(arry))))))))))");
+    struct {
+        static void parse(const char * text, size_t len)
+        {
+            /*  Parse the given mutated text. The given text may or may not be
+                syntactically correct, depending on how it has been mutated.
+                The parse may succeed or it may fail with a Loon syntax exception.
+                But what matters is that it never fails with any other kind of
+                exception, and it never crashes! */
+
+            struct reader : private loon::reader::base  {
+                using base::process_chunk;
+            private:
+                virtual void loon_arry_begin() {}
+                virtual void loon_arry_end() {}
+                virtual void loon_dict_begin() {}
+                virtual void loon_dict_end() {}
+                virtual void loon_dict_key(const char *, size_t) {}
+                virtual void loon_null() {}
+                virtual void loon_bool(bool) {}
+                virtual void loon_number(const char *, size_t, loon::reader::num_type) {}
+                virtual void loon_string(const char *, size_t) {}
+            };
+
+            reader r;
+            try {
+                r.process_chunk(text, len, /*is_last_chunk=*/true);
+                // if this doesn't throw a syntax exception the mutation
+                // must still be valid Loon, but we can't test that
+            }
+            catch (const loon::reader::exception & e) {
+                // not unexpectedly, some mutatations cause syntax errors
+                if (e.id() == loon::reader::internal_error_unknown_state
+                    || e.id() == loon::reader::internal_error_inconsistent) {
+                    // if this ever happens we'll want to dump out the text that caused it
+                    std::cout << "loon::reader::exception: " << e.what() << "\n";
+                    TEST_FAILED();
+                }
+                // else, assume the reported syntax error is correct and ignore it
+            }
+            catch (const std::exception & e) {
+                // if this ever happens we'll want to dump out the text that caused it
+                std::cout << "std::exception: " << e.what() << "\n";
+                TEST_FAILED();
+            }
+            catch (...) {
+                // if this ever happens we'll want to dump out the text that caused it
+                std::cout << "exception!\n";
+                TEST_FAILED();
+            }
+        }
+
+        // return a random number in the range (0, n]
+        int random(int n) const
+        {
+            return rand() % n;
+        }
+
+        typedef void fubar_test_func(const char * mutated_text, size_t mutated_text_len);
+
+        // fubar: repeatedly call given 'f' with progressively more mutated 'text'
+        void operator()(const char * text, fubar_test_func * f = parse) const
+        {
+            const size_t text_len = static_cast<size_t>(strlen(text));
+            if (text_len == 0)
+                return;
+            std::vector<char> buf(text_len);
+
+            const int num_restarts = 100;   // restart from fresh text this number of times
+            const int num_mutations = 100;  // total mutations to perform after each restart
+            // (setting these values 100x larger makes it run for hours, but no bugs found)
+
+            for (int j = 0; j < num_restarts; ++j) {
+                std::copy(text, text + text_len, &buf[0]);
+                for (int i = 0; i < num_mutations; ++i) {
+                    // change one random byte in the string to some random value
+                    buf[random(text_len)] = static_cast<char>(random(256));
+                    // parse the mutated string
+                    f(&buf[0], text_len);
+                }
+            }
+        }
+
+    } fubar;
+
+    fubar("true");
+    fubar("1.234");
+    fubar("0xABC123");
+    fubar("(arry 1 2 3 4)");
+    fubar("(dict \"key\" \"value\")");
+    fubar("(arry (arry 1 2 3 4) true false .999)");
+    fubar("\"The rain in Spain stays mainly in the plain.\"");
+    fubar("(dict \"k\" (dict \"k\" (dict \"k\" (dict \"k\" (dict)))))");
+    fubar("(arry(arry(arry(arry(arry(arry(arry(arry(arry(arry))))))))))");
 }
 
 
@@ -2370,6 +2425,7 @@ void test()
     test_syntax_errors();
     test_reset();
     test_adhoc_valid();
+    test_current_line();
     soaktest();
     fuzztest();
 }
