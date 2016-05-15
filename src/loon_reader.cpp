@@ -324,7 +324,7 @@ bool read4hex(const uint8_t * src, uint32_t & n)
     return true;
 }
 
-
+// write given UTF-32 'n' to given 'dst' as UTF-8; return number of bytes written
 int write_utf32_as_utf8(uint8_t * dst, uint32_t n)
 {
     uint8_t * p = dst;
@@ -350,7 +350,7 @@ int write_utf32_as_utf8(uint8_t * dst, uint32_t n)
     return p - dst;
 }
 
-
+// replace all Loon string escapes with their UTF-8 values in the given 's'
 error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
 {
     if (s.empty())
@@ -364,7 +364,7 @@ error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
     const uint8_t * const end = src + s.size() - 1;
     while (*src != esc_char)
         ++src;
-    s.pop_back();           // remove sentinal
+    s.pop_back();           // remove sentinal (cannot cause reallocation)
     if (src == end)
         return no_error;    // string contains no escapes
 

@@ -2210,9 +2210,11 @@ void test_current_line()
         "    3\r\n"
         "    4\v"
         "    5\f"
-        "    6;\n"
+        "    6;line six\n"
         "    7\n\n\r\r\r\n\r\n\v\v\f\f"
-        "    17)";
+        "    17\t17\n"
+        "    18 19\\\n" // line splice: parser doesn't know it has seen all digits of number 19 until it sees the space on line 19
+        "    19)";
     const size_t len = sizeof(text) - 1;
 
     reader r;
