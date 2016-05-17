@@ -32,6 +32,8 @@
 #include "var.h" // a sample variant class used for testing, not part of loon itself
 
 #include <iostream>
+#include <ratio>
+#include <chrono>
 
 namespace {
 
@@ -2419,6 +2421,160 @@ void fuzztest()
     fubar("(arry(arry(arry(arry(arry(arry(arry(arry(arry(arry))))))))))");
 }
 
+/////////////////////////////////////////////////////////////////////////////
+
+
+void performancetest()
+{
+/*
+{
+  "location":"http://google.com/flatbuffers/",
+  "initialized":true,
+  "fruit":"Bananas",
+  "list":[
+    {
+      "sibling":{
+        "parent":{
+          "i_d":0xABADCAFE,
+          "count":10000,
+          "prefix":64,
+          "length":1000000
+        },
+        "time":123456,
+        "ratio":3.14159,
+        "size":10000
+      },
+      "name":"Hello, World!",
+      "rating":3.1415432432445543543,
+      "postfix":33
+    },{
+      "sibling":{
+        "parent":{
+          "i_d":0xABADCAFE,
+          "count":10001,
+          "prefix":65,
+          "length":1000001
+        },
+        "time":123457,
+        "ratio":4.14159,
+        "size":10001
+      },
+      "name":"Hello, World!",
+      "rating":4.1415432432445543543,
+      "postfix":34
+    },{
+      "sibling":{
+        "parent":{
+          "i_d":0xABADCAFE,
+          "count":10002,
+          "prefix":66,
+          "length":1000002
+        },
+        "time":123458,
+        "ratio":5.14159,
+        "size":10002
+      },
+      "name":"Hello, World!",
+      "rating":5.1415432432445543543,
+      "postfix":35
+    }
+  ]
+}
+-- https://medium.com/@icex33/10-thousand-times-faster-swift-737b1accd973#.5puhwhc0v
+*/
+
+    const char text[] =
+        "(dict\n"
+        "  \"location\" \"http://google.com/flatbuffers/\"\n"
+        "  \"initialized\" true\n"
+        "  \"fruit\" \"Bananas\"\n"
+        "  \"list\" (arry\n"
+        "    (dict\n"
+        "      \"sibling\" (dict\n"
+        "        \"parent\" (dict\n"
+        "          \"i_d\" 0xABADCAFE\n"
+        "          \"count\" 10000\n"
+        "          \"prefix\" 64\n"
+        "          \"length\" 1000000\n"
+        "        )\n"
+        "        \"time\" 123456\n"
+        "        \"ratio\" 3.14159\n"
+        "        \"size\" 10000\n"
+        "      )\n"
+        "      \"name\" \"Hello, World!\"\n"
+        "      \"rating\" 3.1415432432445543543\n"
+        "      \"postfix\" 33\n"
+        "    ) (dict\n"
+        "      \"sibling\" (dict\n"
+        "        \"parent\" (dict\n"
+        "          \"i_d\" 0xABADCAFE\n"
+        "          \"count\" 10001\n"
+        "          \"prefix\" 65\n"
+        "          \"length\" 1000001\n"
+        "        )\n"
+        "        \"time\" 123457\n"
+        "        \"ratio\" 4.14159\n"
+        "        \"size\" 10001\n"
+        "      )\n"
+        "      \"name\" \"Hello, World!\"\n"
+        "      \"rating\" 4.1415432432445543543\n"
+        "      \"postfix\" 34\n"
+        "    ) (dict\n"
+        "      \"sibling\" (dict\n"
+        "        \"parent\" (dict\n"
+        "          \"i_d\" 0xABADCAFE\n"
+        "          \"count\" 10002\n"
+        "          \"prefix\" 66\n"
+        "          \"length\" 1000002\n"
+        "        )\n"
+        "        \"time\" 123458\n"
+        "        \"ratio\" 5.14159\n"
+        "        \"size\" 10002\n"
+        "      )\n"
+        "      \"name\" \"Hello, World!\"\n"
+        "      \"rating\" 5.1415432432445543543\n"
+        "      \"postfix\" 35\n"
+        "    )\n"
+        "  )\n"
+        ")\n";
+    const size_t text_len = sizeof(text) - 1;
+
+
+    struct reader : private loon::reader::base  {
+        using base::process_chunk;
+        using base::reset;
+    private:
+        virtual void loon_arry_begin() {}
+        virtual void loon_arry_end() {}
+        virtual void loon_dict_begin() {}
+        virtual void loon_dict_end() {}
+        virtual void loon_dict_key(const char *, size_t) {}
+        virtual void loon_null() {}
+        virtual void loon_bool(bool) {}
+        virtual void loon_number(const char *, size_t, loon::reader::num_type) {}
+        virtual void loon_string(const char *, size_t) {}
+    };
+
+    using namespace std::chrono;
+    const high_resolution_clock::time_point t1 = high_resolution_clock::now();
+
+    const int itterations = 10000;
+    reader r;
+    for (int i = 0; i < itterations; ++i) {
+        r.reset();
+        r.process_chunk(text, text_len, /*is_last_chunk=*/true);
+    }
+
+    const high_resolution_clock::time_point t2 = high_resolution_clock::now();
+    const duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+
+    std::cout
+        << "["
+        << static_cast<int>(itterations / time_span.count())
+        << " reads/second]\n";
+    // (orders of magnitude slower than Google flatbuffers)
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -2434,6 +2590,7 @@ void test()
     test_current_line();
     soaktest();
     fuzztest();
+    performancetest();
 }
 
 }

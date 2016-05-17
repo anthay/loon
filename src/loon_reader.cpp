@@ -271,7 +271,7 @@ inline bool is_ctrl(uint8_t ch)
 
 inline bool is_whitespace(uint8_t ch)
 {
-    return ch == ' ' || is_ctrl(ch);
+    return ch <= 0x20 || ch == 0x7F;
     // this must hold: is_newline(ch) => is_whitespace(ch)
 }
 
@@ -478,8 +478,8 @@ void lexer::process(uint8_t ch)
 {
     switch (state_) {
     case start:
-        if (is_whitespace(ch) || is_ctrl(ch)) {
-            // ignore white space and control characters
+        if (is_whitespace(ch)) {
+            // ignore white space (including control characters)
             // remain in start state
         }
         else if (ch == ';') { // the start of a comment
