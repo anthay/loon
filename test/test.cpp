@@ -1836,6 +1836,9 @@ void test_numbers()
         "0x",
         "1xABCD",
         "0xABCDEFG",
+        "0xABC.123"
+        "+0x123",
+        "-0x123",
         "9A",
         "9+",
         "+",
