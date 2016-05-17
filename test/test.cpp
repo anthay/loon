@@ -2558,9 +2558,9 @@ void performancetest()
     using namespace std::chrono;
     const high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
-    const int itterations = 10000;
+    const int iterations = 10000;
     reader r;
-    for (int i = 0; i < itterations; ++i) {
+    for (int i = 0; i < iterations; ++i) {
         r.reset();
         r.process_chunk(text, text_len, /*is_last_chunk=*/true);
     }
@@ -2570,7 +2570,7 @@ void performancetest()
 
     std::cout
         << "["
-        << static_cast<int>(itterations / time_span.count())
+        << static_cast<int>(iterations / time_span.count())
         << " reads/second]\n";
     // (orders of magnitude slower than Google flatbuffers)
 }
