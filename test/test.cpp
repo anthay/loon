@@ -2426,62 +2426,60 @@ void fuzztest()
 
 void performancetest()
 {
-/*
-{
-  "location":"http://google.com/flatbuffers/",
-  "initialized":true,
-  "fruit":"Bananas",
-  "list":[
-    {
-      "sibling":{
-        "parent":{
-          "i_d":0xABADCAFE,
-          "count":10000,
-          "prefix":64,
-          "length":1000000
-        },
-        "time":123456,
-        "ratio":3.14159,
-        "size":10000
-      },
-      "name":"Hello, World!",
-      "rating":3.1415432432445543543,
-      "postfix":33
-    },{
-      "sibling":{
-        "parent":{
-          "i_d":0xABADCAFE,
-          "count":10001,
-          "prefix":65,
-          "length":1000001
-        },
-        "time":123457,
-        "ratio":4.14159,
-        "size":10001
-      },
-      "name":"Hello, World!",
-      "rating":4.1415432432445543543,
-      "postfix":34
-    },{
-      "sibling":{
-        "parent":{
-          "i_d":0xABADCAFE,
-          "count":10002,
-          "prefix":66,
-          "length":1000002
-        },
-        "time":123458,
-        "ratio":5.14159,
-        "size":10002
-      },
-      "name":"Hello, World!",
-      "rating":5.1415432432445543543,
-      "postfix":35
+/*  {
+      "location":"http://google.com/flatbuffers/",
+      "initialized":true,
+      "fruit":"Bananas",
+      "list":[
+        {
+          "sibling":{
+            "parent":{
+              "i_d":0xABADCAFE,
+              "count":10000,
+              "prefix":64,
+              "length":1000000
+            },
+            "time":123456,
+            "ratio":3.14159,
+            "size":10000
+          },
+          "name":"Hello, World!",
+          "rating":3.1415432432445543543,
+          "postfix":33
+        },{
+          "sibling":{
+            "parent":{
+              "i_d":0xABADCAFE,
+              "count":10001,
+              "prefix":65,
+              "length":1000001
+            },
+            "time":123457,
+            "ratio":4.14159,
+            "size":10001
+          },
+          "name":"Hello, World!",
+          "rating":4.1415432432445543543,
+          "postfix":34
+        },{
+          "sibling":{
+            "parent":{
+              "i_d":0xABADCAFE,
+              "count":10002,
+              "prefix":66,
+              "length":1000002
+            },
+            "time":123458,
+            "ratio":5.14159,
+            "size":10002
+          },
+          "name":"Hello, World!",
+          "rating":5.1415432432445543543,
+          "postfix":35
+        }
+      ]
     }
-  ]
-}
--- https://medium.com/@icex33/10-thousand-times-faster-swift-737b1accd973#.5puhwhc0v
-*/
+    -- https://medium.com/@icex33/10-thousand-times-faster-swift-737b1accd973#.5puhwhc0v */
 
     const char text[] =
         "(dict\n"
@@ -2537,6 +2535,7 @@ void performancetest()
         "    )\n"
         "  )\n"
         ")\n";
+
     const size_t text_len = sizeof(text) - 1;
 
 
@@ -2558,21 +2557,23 @@ void performancetest()
     using namespace std::chrono;
     const high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
-    const int iterations = 10000;
+    const int num_reads = 10000;
     reader r;
-    for (int i = 0; i < iterations; ++i) {
+    for (int i = 0; i < num_reads; ++i) {
         r.reset();
         r.process_chunk(text, text_len, /*is_last_chunk=*/true);
     }
 
     const high_resolution_clock::time_point t2 = high_resolution_clock::now();
-    const duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+    const double elapsed_time = duration_cast<duration<double>>(t2 - t1).count();
 
     std::cout
         << "["
-        << static_cast<int>(iterations / time_span.count())
-        << " reads/second]\n";
-    // (orders of magnitude slower than Google flatbuffers)
+        << static_cast<int>(num_reads / elapsed_time)
+        << " reads/second (~"
+        << static_cast<int>(text_len * num_reads / (elapsed_time * 1024 * 1024))
+        << " MB/s)]\n";
+    // (orders of magnitude slower than Google flatbuffers (which uses a binary file format))
 }
 
 
