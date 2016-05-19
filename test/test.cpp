@@ -2579,7 +2579,7 @@ void performancetest()
         writer() : total_length(0) {}
 
     private:
-        virtual void write(const char * utf8, size_t len)
+        virtual void write(const char * /*utf8*/, size_t len)
         {
             //std::cout << std::string(utf8, len);
             total_length += len;
@@ -2662,12 +2662,13 @@ void performancetest()
 
 
     if (reading_seconds > 0.0001 && writing_seconds > 0.0001) {
-        std::cout
-            << "reading ~"
-            << static_cast<int>(text_len * num_reads / (reading_seconds * 1024 * 1024))
-            << " MB/s, writing ~"
-            << static_cast<int>(w.total_length / (writing_seconds * 1024 * 1024))
-            << " MB/s\n";
+        const int reading_mb_s = static_cast<int>(text_len * num_reads / (reading_seconds * 1024 * 1024));
+        const int writing_mb_s = static_cast<int>(w.total_length / (writing_seconds * 1024 * 1024));
+        std::cout << "reading ";
+        if (reading_mb_s) std::cout << reading_mb_s; else std::cout << "<1";
+        std::cout << " MB/s, writing ";
+        if (writing_mb_s) std::cout << writing_mb_s; else std::cout << "<1";
+        std::cout << " MB/s\n";
     }
 }
 
