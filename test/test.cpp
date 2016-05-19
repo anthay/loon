@@ -1506,6 +1506,7 @@ void test_strings()
 {
     test("\"\"", var(""));
     test("\"hello\"", var("hello"));
+    test("\"'hello'\"", var("'hello'"));
     test("\"hello\";comment", var("hello"));
 
     // UTF-8 
@@ -2426,6 +2427,8 @@ void fuzztest()
 
 void performancetest()
 {
+    // reader performance
+
 /*  {
       "location":"http://google.com/flatbuffers/",
       "initialized":true,
@@ -2543,15 +2546,15 @@ void performancetest()
         using base::process_chunk;
         using base::reset;
     private:
+        virtual void loon_null() {}
         virtual void loon_arry_begin() {}
         virtual void loon_arry_end() {}
         virtual void loon_dict_begin() {}
         virtual void loon_dict_end() {}
-        virtual void loon_dict_key(const char *, size_t) {}
-        virtual void loon_null() {}
         virtual void loon_bool(bool) {}
-        virtual void loon_number(const char *, size_t, loon::reader::num_type) {}
         virtual void loon_string(const char *, size_t) {}
+        virtual void loon_dict_key(const char *, size_t) {}
+        virtual void loon_number(const char *, size_t, loon::reader::num_type) {}
     };
 
     using namespace std::chrono;
@@ -2565,15 +2568,107 @@ void performancetest()
     }
 
     const high_resolution_clock::time_point t2 = high_resolution_clock::now();
-    const double elapsed_time = duration_cast<duration<double>>(t2 - t1).count();
+    const double reading_seconds = duration_cast<duration<double>>(t2 - t1).count();
 
-    std::cout
-        << "["
-        << static_cast<int>(num_reads / elapsed_time)
-        << " reads/second (~"
-        << static_cast<int>(text_len * num_reads / (elapsed_time * 1024 * 1024))
-        << " MB/s)]\n";
-    // (orders of magnitude slower than Google flatbuffers (which uses a binary file format))
+
+
+    // writer performance
+
+    struct writer : public loon::writer::base {
+        size_t total_length;
+        writer() : total_length(0) {}
+
+    private:
+        virtual void write(const char * utf8, size_t len)
+        {
+            //std::cout << std::string(utf8, len);
+            total_length += len;
+        }
+    };
+
+    const int num_writes = 10000;
+    writer w;
+    for (int i = 0; i < num_writes; ++i) {
+        w.loon_dict_begin();
+          w.loon_dict_key("location"); w.loon_string("http://google.com/flatbuffers/");
+          w.loon_dict_key("initialized"); w.loon_bool(true);
+          w.loon_dict_key("fruit"); w.loon_string("Bananas");
+          w.loon_dict_key("list");
+          w.loon_arry_begin();
+
+            w.loon_dict_begin();
+              w.loon_dict_key("sibling");
+              w.loon_dict_begin();
+                w.loon_dict_key("parent");
+                w.loon_dict_begin();
+                  w.loon_dict_key("i_d"); w.loon_hex_u32(0xABADCAFE);
+                  w.loon_dict_key("count"); w.loon_dec_u32(10000);
+                  w.loon_dict_key("prefix"); w.loon_dec_u32(64);
+                  w.loon_dict_key("length"); w.loon_dec_u32(1000000);
+                w.loon_dict_end();
+                w.loon_dict_key("time"); w.loon_dec_u32(123456);
+                w.loon_dict_key("ratio"); w.loon_double(3.14159);
+                w.loon_dict_key("size"); w.loon_dec_u32(10000);
+              w.loon_dict_end();
+              w.loon_dict_key("name"); w.loon_string("Hello, World!");
+              w.loon_dict_key("rating"); w.loon_preformatted_value("3.1415432432445543543", 21);
+              w.loon_dict_key("postfix"); w.loon_dec_u32(33);
+            w.loon_dict_end();
+
+            w.loon_dict_begin();
+              w.loon_dict_key("sibling");
+              w.loon_dict_begin();
+                w.loon_dict_key("parent");
+                w.loon_dict_begin();
+                  w.loon_dict_key("i_d"); w.loon_hex_u32(0xABADCAFE);
+                  w.loon_dict_key("count"); w.loon_dec_u32(10001);
+                  w.loon_dict_key("prefix"); w.loon_dec_u32(65);
+                  w.loon_dict_key("length"); w.loon_dec_u32(1000001);
+                w.loon_dict_end();
+                w.loon_dict_key("time"); w.loon_dec_u32(123457);
+                w.loon_dict_key("ratio"); w.loon_double(4.14159);
+                w.loon_dict_key("size"); w.loon_dec_u32(10001);
+              w.loon_dict_end();
+              w.loon_dict_key("name"); w.loon_string("Hello, World!");
+              w.loon_dict_key("rating"); w.loon_preformatted_value("4.1415432432445543543", 21);
+              w.loon_dict_key("postfix"); w.loon_dec_u32(34);
+            w.loon_dict_end();
+
+            w.loon_dict_begin();
+              w.loon_dict_key("sibling");
+              w.loon_dict_begin();
+                w.loon_dict_key("parent");
+                w.loon_dict_begin();
+                  w.loon_dict_key("i_d"); w.loon_hex_u32(0xABADCAFE);
+                  w.loon_dict_key("count"); w.loon_dec_u32(10002);
+                  w.loon_dict_key("prefix"); w.loon_dec_u32(66);
+                  w.loon_dict_key("length"); w.loon_dec_u32(1000002);
+                w.loon_dict_end();
+                w.loon_dict_key("time"); w.loon_dec_u32(123458);
+                w.loon_dict_key("ratio"); w.loon_double(5.14159);
+                w.loon_dict_key("size"); w.loon_dec_u32(10002);
+              w.loon_dict_end();
+              w.loon_dict_key("name"); w.loon_string("Hello, World!");
+              w.loon_dict_key("rating"); w.loon_preformatted_value("5.1415432432445543543", 21);
+              w.loon_dict_key("postfix"); w.loon_dec_u32(35);
+            w.loon_dict_end();
+
+          w.loon_arry_end();
+        w.loon_dict_end();
+    }
+
+    const high_resolution_clock::time_point t3 = high_resolution_clock::now();
+    const double writing_seconds = duration_cast<duration<double>>(t3 - t2).count();
+
+
+    if (reading_seconds > 0.0001 && writing_seconds > 0.0001) {
+        std::cout
+            << "reading ~"
+            << static_cast<int>(text_len * num_reads / (reading_seconds * 1024 * 1024))
+            << " MB/s, writing ~"
+            << static_cast<int>(w.total_length / (writing_seconds * 1024 * 1024))
+            << " MB/s\n";
+    }
 }
 
 
