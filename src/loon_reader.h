@@ -39,6 +39,11 @@ namespace  loon {
 namespace reader {
 
 
+typedef std::vector<uint8_t> vector_uint8;
+
+
+
+
 // exception error codes
 enum error_id {
     no_error                                = 0,
@@ -148,10 +153,10 @@ public:
 
     virtual void begin_list() = 0;
     virtual void end_list() = 0;
-    virtual void atom_symbol(const std::vector<uint8_t> &) = 0;
-    virtual void atom_string(const std::vector<uint8_t> &) = 0;
+    virtual void atom_symbol(const vector_uint8 &) = 0;
+    virtual void atom_string(const vector_uint8 &) = 0;
 
-    virtual void atom_number(const std::vector<uint8_t> &, num_type) = 0;
+    virtual void atom_number(const vector_uint8 &, num_type) = 0;
 
     virtual int current_line() const { return current_line_; }
 
@@ -165,7 +170,7 @@ private:
         num_exp_start, num_frac_digits, num_exp_start_digits, num_exp } state_;
     bool cr_;
     int nest_level_;
-    std::vector<uint8_t> value_;
+    vector_uint8 value_;
     void process(uint8_t ch);
 };
 
@@ -256,9 +261,9 @@ private:
 
     virtual void begin_list();
     virtual void end_list();
-    virtual void atom_symbol(const std::vector<uint8_t> &);
-    virtual void atom_string(const std::vector<uint8_t> &);
-    virtual void atom_number(const std::vector<uint8_t> &, num_type);
+    virtual void atom_symbol(const vector_uint8 &);
+    virtual void atom_string(const vector_uint8 &);
+    virtual void atom_number(const vector_uint8 &, num_type);
 };
 
 
