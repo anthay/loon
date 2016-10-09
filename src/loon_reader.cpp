@@ -253,7 +253,7 @@ inline uint32_t utf16_combine_surrogate_pair(uint32_t lead, uint32_t trail)
 
 inline bool is_digit(uint8_t ch)
 {
-    return '0' <= ch && ch <= '9';
+    return unsigned(ch) - '0' < 10;
 }
 
 inline bool is_hexdigit(uint8_t ch)
