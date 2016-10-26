@@ -50,6 +50,7 @@ namespace {
 // is empty (but result will NOT be null-terminated)
 inline const char * char_ptr(const std::vector<uint8_t> & s)
 {
+    static_assert(CHAR_BIT == 8, "char is not 8 bits; code assumes it is");
     return s.empty() ? "" : reinterpret_cast<const char *>(&s[0]);
 }
 
@@ -73,6 +74,7 @@ void escape(std::vector<uint8_t> & utf8_out, const std::string & utf8_in)
     utf8_out.push_back('"');
 
     if (!utf8_in.empty()) {
+        static_assert(CHAR_BIT == 8, "char is not 8 bits; code assumes it is");
         const uint8_t * p = reinterpret_cast<const uint8_t *>(utf8_in.c_str());
         const uint8_t * const end = p + utf8_in.size();
         for (; p != end; ++p) {

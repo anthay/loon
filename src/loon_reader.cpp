@@ -103,7 +103,7 @@ std::string exception_msg(error_id id, std::string & description)
 
     case missing_arry_or_dict_symbol:
         description =
-            "Something other than arry or dict was found following an open bracket.";
+            "Something other than 'arry' or 'dict' was found following an open bracket.";
         return "Missing arry or dict symbol.";
 
     case missing_dict_value:
@@ -194,7 +194,7 @@ std::string exception_msg(error_id id, std::string & description)
 //      Loon error <id>: <short description>.
 //      Found on line <line>[, at or near '<v>'].
 //      (<long description>.)
-std::string throw_msg(error_id id, int line, const std::vector<uint8_t> & v)
+std::string throw_msg(error_id id, int line, const vector_uint8 & v)
 {
     std::string description, msg = "Loon error " + to_string(id);
     msg += ": " + exception_msg(id, description);
@@ -212,18 +212,18 @@ std::string throw_msg(error_id id, int line, const std::vector<uint8_t> & v)
 
 std::string throw_msg(error_id id, int line)
 {
-    return throw_msg(id, line, std::vector<uint8_t>());
+    return throw_msg(id, line, vector_uint8());
 }
 
 // return a usable const char pointer to the given 's', even when 's'
 // is empty (but result will NOT be null-terminated)
-inline const char * char_ptr(const std::vector<uint8_t> & s)
+inline const char * char_ptr(const vector_uint8 & s)
 {
     return s.empty() ? "" : reinterpret_cast<const char *>(&s[0]);
 }
 
 // return true iff 'a' matches 'b' exactly (excluding 'b's null-terminator)
-inline bool operator==(const std::vector<uint8_t> & a, const char * b)
+inline bool operator==(const vector_uint8 & a, const char * b)
 {
     for (size_t i = 0; ; ++i) {
         if (i == a.size())
@@ -253,7 +253,7 @@ inline uint32_t utf16_combine_surrogate_pair(uint32_t lead, uint32_t trail)
 
 inline bool is_digit(uint8_t ch)
 {
-    return '0' <= ch && ch <= '9';
+    return unsigned(ch) - '0' < 10;
 }
 
 inline bool is_hexdigit(uint8_t ch)
@@ -351,7 +351,7 @@ int write_utf32_as_utf8(uint8_t * dst, uint32_t n)
 }
 
 // replace all Loon string escapes with their UTF-8 values in the given 's'
-error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
+error_id expand_loon_string_escapes(vector_uint8 & s)
 {
     if (s.empty())
         return no_error;    // empty string => no escapes
@@ -451,9 +451,9 @@ error_id expand_loon_string_escapes(std::vector<uint8_t> & s)
 // notification of the parsed tokens
 void lexer::begin_list() {}
 void lexer::end_list() {}
-void lexer::atom_symbol(const std::vector<uint8_t> &) {}
-void lexer::atom_string(const std::vector<uint8_t> &) {}
-void lexer::atom_number(const std::vector<uint8_t> &, num_type) {}
+void lexer::atom_symbol(const vector_uint8 &) {}
+void lexer::atom_string(const vector_uint8 &) {}
+void lexer::atom_number(const vector_uint8 &, num_type) {}
 
 
 
@@ -735,6 +735,7 @@ void lexer::process(uint8_t ch)
 
 void lexer::process_chunk(const char * utf8, size_t len, bool is_last_chunk)
 {
+    static_assert(CHAR_BIT == 8, "char is not 8 bits; code assumes it is");
     const uint8_t * p = reinterpret_cast<const uint8_t *>(utf8);
     const uint8_t * const end = p + len;
 
@@ -1011,7 +1012,7 @@ void base::end_list()
     list_state_.pop_back();
 }
 
-void base::atom_symbol(const std::vector<uint8_t> & value)
+void base::atom_symbol(const vector_uint8 & value)
 {
     toggle_dict_state();
 
@@ -1042,7 +1043,7 @@ void base::atom_symbol(const std::vector<uint8_t> & value)
     }
 }
 
-void base::atom_string(const std::vector<uint8_t> & value)
+void base::atom_string(const vector_uint8 & value)
 {
     if (at_list_start_)
         throw exception(missing_arry_or_dict_symbol, current_line_,
@@ -1063,7 +1064,7 @@ void base::atom_string(const std::vector<uint8_t> & value)
     }
 }
 
-void base::atom_number(const std::vector<uint8_t> & value, num_type ntype)
+void base::atom_number(const vector_uint8 & value, num_type ntype)
 {
     if (at_list_start_)
         throw exception(missing_arry_or_dict_symbol, current_line_,

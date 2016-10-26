@@ -1768,6 +1768,21 @@ void test_numbers()
         "00.01",
         "001.100",
 
+        // examples from https://github.com/minimaxir/big-list-of-naughty-strings.git
+        "0", 
+        "1", 
+        "1.00", 
+        "1E2", 
+        "1E02", 
+        "1E+02", 
+        "0.00", 
+        "999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", 
+        "123456789012345678901234567890123456789", 
+        "01000", 
+        "08", 
+        "09", 
+        "2.2250738585072011e-308", 
+
         0
     };
 
@@ -1826,6 +1841,11 @@ void test_numbers()
         "0xFFFFFFFFFFFFFFF",
         "0xFFFFFFFFFFFFFFFF",
 
+        "0x0", 
+        "0xffffffff", 
+        "0xffffffffffffffff", 
+        "0xabad1dea", 
+
         0
     };
 
@@ -1867,6 +1887,51 @@ void test_numbers()
         ". ",
         "..",
         ".. ",
+
+        // examples derrived from https://github.com/minimaxir/big-list-of-naughty-strings.git
+        "$1.00", 
+        "1/2", 
+        "-$1.00", 
+        "-1/2", 
+        "1/0", 
+        "0/0", 
+        "-2147483648/-1", 
+        "-9223372036854775808/-1", 
+        "0..0", 
+        ".", 
+        "0.0.0", 
+        "0,00", 
+        "0,,0", 
+        ",", 
+        "0,0,0", 
+        "0.0/0", 
+        "1.0/0.0", 
+        "0.0/0.0", 
+        "1,0/0,0", 
+        "0,0/0,0", 
+        "--1", 
+        "-", 
+        "-.", 
+        "-,", 
+        "NaN", 
+        "Infinity", 
+        "-Infinity", 
+        "INF", 
+        "1#INF", 
+        "-1#IND", 
+        "1#QNAN", 
+        "1#SNAN", 
+        "1#IND", 
+        "1,000.00", 
+        "1'000.00", 
+        "1,000,000.00", 
+        "1'000'000.00", 
+        "1.000,00", 
+        "1 000,00", 
+        "1'000,00", 
+        "1.000.000,00", 
+        "1 000 000,00", 
+        "1'000'000,00", 
 
         0
     };
@@ -2679,8 +2744,64 @@ void performancetest()
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+// how deep can we go?
+void depthtest()
+{
+    struct reader : private loon::reader::base  {
+        using base::process_chunk;
+    private:
+        virtual void loon_arry_begin() {}
+        virtual void loon_arry_end() {}
+        virtual void loon_dict_begin() {}
+        virtual void loon_dict_end() {}
+        virtual void loon_dict_key(const char *, size_t) {}
+        virtual void loon_null() {}
+        virtual void loon_bool(bool) {}
+        virtual void loon_number(const char *, size_t, loon::reader::num_type) {}
+        virtual void loon_string(const char *, size_t) {}
+    };
+
+    int depth = 0;
+    const int depth_test_limit = 1000000;
+    const char text[] = "(dict \"key\" (arry (arry (arry ";
+    try {
+        reader r;
+        for (; depth < depth_test_limit; ++depth) {
+            r.process_chunk(text, sizeof(text) - 1, /*is_last_chunk=*/false);
+        }
+    }
+    catch (const std::bad_alloc & e) {
+        // may get here if out of memory - probably not a bug
+        std::cout
+            << "After repeatedly nesting '" << text << "'\n"
+            << depth << " times, we got std::exception: " << e.what() << "\n";
+        if (depth < 100000) // we won't count this as a failure unless it's a small number
+            TEST_FAILED();
+    }
+    catch (const loon::reader::exception & e) {
+        // should never get here
+        std::cout << "loon::reader::exception: " << e.what() << "\n";
+        TEST_FAILED();
+    }
+    catch (const std::exception & e) {
+        // should never get here
+        std::cout << "std::exception: " << e.what() << "\n";
+        TEST_FAILED();
+    }
+    catch (...) {
+        // should never get here
+        std::cout << "exception!\n";
+        TEST_FAILED();
+    }
+}
 
 /////////////////////////////////////////////////////////////////////////////
+
+
 
 void test()
 {
@@ -2694,6 +2815,7 @@ void test()
     test_current_line();
     soaktest();
     fuzztest();
+    depthtest();
     performancetest();
 }
 
